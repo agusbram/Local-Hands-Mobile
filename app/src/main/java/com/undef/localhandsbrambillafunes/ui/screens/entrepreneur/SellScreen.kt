@@ -53,36 +53,60 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import androidx.compose.foundation.lazy.items
-
-
+import androidx.compose.material3.CircularProgressIndicator
+import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellerCreationStatus
 
 /**
- * Pantalla de gestión de productos del usuario con diseño unificado al estilo general de la aplicación.
+ * Pantalla principal del flujo de venta para emprendedores.
  *
- * Muestra la lista de productos que el usuario ha creado para la venta, con imagen, nombre y una
- * etiqueta "Ver detalle", imitando el diseño utilizado en la pantalla principal.
+ * Este composable es responsable de:
+ * - Obtener la información del usuario autenticado desde [SessionViewModel].
+ * - Verificar o crear el perfil de vendedor mediante [SellViewModel].
+ * - Cargar los productos asociados al vendedor actual usando [ProductViewModel].
+ * - Renderizar la interfaz adecuada según el estado del proceso de creación del vendedor.
  *
- * La interacción está limitada únicamente al hacer clic en toda la tarjeta del producto,
- * lo cual lleva a la pantalla de edición o eliminación correspondiente.
+ * El comportamiento de la pantalla está controlado por el estado [SellerCreationStatus],
+ * mostrando indicadores de carga, mensajes de error o el dashboard del vendedor según corresponda.
  *
- * @param navController Controlador de navegación utilizado para moverse entre pantallas.
+ * @param navController Controlador de navegación para gestionar los cambios de pantalla.
+ * @param productViewModel ViewModel encargado de la gestión de productos.
+ * @param sessionViewModel ViewModel que provee la información de la sesión actual.
+ * @param sellViewModel ViewModel responsable de la lógica de creación y validación del vendedor.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellScreen(
     navController: NavController,
     productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
-    sessionViewModel: SessionViewModel = hiltViewModel<SessionViewModel>()
+    sessionViewModel: SessionViewModel = hiltViewModel<SessionViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
 ) {
+    /**
+     * Estados locales que almacenan la información del usuario actual
+     * necesaria para crear o validar el perfil de vendedor.
+     */
     val currentUserIdState = remember { mutableStateOf<Int?>(null) }
+    val currentSellerEmailState = remember { mutableStateOf<String?>(null) }
+    val currentSellerNameState = remember { mutableStateOf<String?>(null) }
+    val currentSellerLastNameState = remember { mutableStateOf<String?>(null) }
+    val currentSellerPhoneState = remember { mutableStateOf<String?>(null) }
+    val currentSellerEntrepreneurshipState = remember { mutableStateOf<String?>(null) }
+    val currentSellerAddressState = remember { mutableStateOf<String?>(null) }
 
-    /*Llamamos a una funcion suspend con corrutinas para obtener el currentUserId*/
+
+    /*Llamamos a una funcion suspend con corrutinas para obtener los datos del usuario actual*/
     LaunchedEffect(Unit) {
-        val currentUserId = sessionViewModel.getCurrentUserId()
-        currentUserIdState.value = currentUserId
+        currentUserIdState.value = sessionViewModel.getCurrentUserId()
+        currentSellerEmailState.value = sessionViewModel.getCurrentSellerEmail()
+        currentSellerNameState.value = sessionViewModel.getCurrentSellerName()
+        currentSellerPhoneState.value = sessionViewModel.getCurrentSellerPhone()
+        currentSellerLastNameState.value = sessionViewModel.getCurrentSellerLastName()
+        currentSellerEntrepreneurshipState.value = sessionViewModel.getCurrentSellerEntrepreneurship()
+        currentSellerAddressState.value = sessionViewModel.getCurrentSellerAddress()
     }
 
     // Se obtienen los productos del vendedor de la sesión actual
@@ -94,6 +118,88 @@ fun SellScreen(
         mutableStateOf(emptyList())
     }
 
+    // Observa el estado del sellViewModel
+    val status by sellViewModel.status.collectAsState()
+
+    // Este efecto se dispara cuando el usuario acepta convertirse en vendedor.
+    // Se lanza solo cuando tenemos los datos del usuario.
+    LaunchedEffect(currentSellerEmailState.value) {
+        // Asegúrate de que no se llame con valores nulos y solo una vez
+        if (currentSellerEmailState.value != null && status == SellerCreationStatus.IDLE) {
+            sellViewModel.becomeSeller(
+                currentSellerEmailState.value!!,
+                currentSellerNameState.value ?: "Sin nombre",
+                currentSellerPhoneState.value ?: "Sin teléfono",
+                currentSellerAddressState.value ?: "Sin dirección",
+                currentSellerEntrepreneurshipState.value ?: "Sin emprendimiento",
+                currentSellerLastNameState.value ?: "Sin apellido"
+            )
+        }
+    }
+
+    // Renderiza la UI según el estado del proceso de creación
+    when (status) {
+        SellerCreationStatus.LOADING -> {
+            // Muestra un indicador de carga
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Verificando tu perfil de emprendedor...")
+                }
+            }
+        }
+        SellerCreationStatus.SUCCESS, SellerCreationStatus.ALREADY_EXISTS -> {
+            // Si tuvo éxito o si ya existía, muestra el dashboard de vendedor (toda tu UI)
+            SellContent(
+                navController = navController,
+                productsOwnerState = productsOwnerState,
+            )
+        }
+        SellerCreationStatus.ERROR -> {
+            // Muestra un mensaje de error con opción a reintentar
+            ErrorView(onRetry = {
+                // Reintenta la operación con los datos del usuario
+                if (currentSellerEmailState.value != null) {
+                    sellViewModel.becomeSeller(
+                        currentSellerEmailState.value!!,
+                        currentSellerNameState.value ?: "Sin nombre",
+                        currentSellerPhoneState.value ?: "Sin teléfono",
+                        currentSellerAddressState.value ?: "Sin dirección",
+                        currentSellerEntrepreneurshipState.value ?: "Sin emprendimiento",
+                        currentSellerLastNameState.value ?: "Sin apellido"
+                    )
+                }
+            })
+        }
+        SellerCreationStatus.IDLE -> {
+            // Estado inicial, muestra un loader mientras se obtienen los datos del usuario
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+
+/**
+ * Composable que representa el dashboard principal del vendedor.
+ *
+ * Muestra:
+ * - Barra superior con acciones de navegación.
+ * - Barra inferior de navegación.
+ * - Botón para agregar nuevos productos.
+ * - Listado de productos en venta pertenecientes al vendedor.
+ *
+ * @param navController Controlador de navegación.
+ * @param productsOwnerState Lista de productos del vendedor actual.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SellContent(
+    navController: NavController,
+    productsOwnerState: List<Product>
+) {
     Scaffold(
         // Barra superior con acciones
         topBar = {
@@ -220,6 +326,32 @@ fun SellScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Composable reutilizable que muestra un mensaje de error
+ * con la posibilidad de reintentar la acción fallida.
+ *
+ * Se utiliza cuando ocurre un error al crear o validar
+ * el perfil de vendedor.
+ *
+ * @param onRetry Acción ejecutada cuando el usuario presiona el botón de reintento.
+ */
+@Composable
+fun ErrorView(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Hubo un problema al crear tu perfil.")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Reintentar")
         }
     }
 }
