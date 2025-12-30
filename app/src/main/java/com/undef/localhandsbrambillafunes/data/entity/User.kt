@@ -18,7 +18,7 @@ import androidx.room.Index
  * @property createdAt Timestamp de creación
  */
 @Entity(
-    tableName = "users", // Nombre de la tabla en la base de datos
+    tableName = "UserEntity", // Nombre de la tabla en la base de datos
     indices = [Index(value = ["email"], unique = true)] // Índice único para email
 )
 data class User(

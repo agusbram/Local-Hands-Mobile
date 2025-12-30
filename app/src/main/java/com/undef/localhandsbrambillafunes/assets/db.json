@@ -1,42 +1,14 @@
 {
   "sellers": [
     {
-      "id": 2,
-      "address": "Av Fuerza Aerea",
-      "email": "abrambilla804@alumnos.iua.edu.ar",
-      "entrepreneurship": "qwert",
-      "lastname": "Brambillin",
+      "id": 1,
+      "address": "Av Fuerza Aerea Argentina",
+      "email": "agustinbram@gmail.com",
+      "entrepreneurship": "Alablublu",
+      "lastname": "Brambilla",
       "name": "Agustin",
       "phone": "3541207081"
     }
   ],
-  "products": [
-    {
-      "id": 0,
-      "category": "Textiles",
-      "description": "Aca andamos",
-      "images": [
-        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767050551162.jpg",
-        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767050551181.jpg"
-      ],
-      "location": "Capilla del Monte",
-      "name": "Como vas che",
-      "ownerId": 2,
-      "price": 1500,
-      "producer": "Yo que seeee"
-    },
-    {
-      "id": 0,
-      "category": "Alimentos",
-      "description": "sadasdsadsad",
-      "images": [
-        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767050612917.jpg"
-      ],
-      "location": "Mina Clavero",
-      "name": "asdsadasdasd",
-      "ownerId": 2,
-      "price": 12345,
-      "producer": "asdasdasdasdsa"
-    }
-  ]
+  "products": []
 }

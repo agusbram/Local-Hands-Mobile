@@ -1,7 +1,9 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
+import com.undef.localhandsbrambillafunes.data.dao.SellerDao
 import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,8 +21,36 @@ import javax.inject.Singleton
  */
 @Singleton
 class SellerRepository @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val sellerDao: SellerDao
 ) {
+    /**
+     * Esta es la ÚNICA función que la UI usará para obtener los vendedores.
+     * Devuelve un Flow directamente desde Room (Fuente de Verdad Única).
+     */
+    fun getSellers(): Flow<List<Seller>> {
+        return sellerDao.getAllSellers()
+    }
+
+    /**
+     * Actualiza la base de datos local con los datos de la API.
+     * Esta función se llamará al iniciar la app o a intervalos regulares.
+     */
+    suspend fun refreshSellers() {
+        try {
+            // 1. Llama a la API para obtener los datos más recientes.
+            val sellersFromApi = apiService.getSellers()
+            // 2. Borra los datos viejos de la base de datos local.
+            sellerDao.deleteAll()
+            // 3. Inserta los nuevos datos en la base de datos local.
+            sellerDao.insertAll(sellersFromApi)
+        } catch (e: Exception) {
+            // Aca se pueden manejar errores de red
+            // Si la llamada falla, la app seguirá mostrando los datos viejos de Room.
+            println("Error al refrescar vendedores: ${e.message}")
+        }
+    }
+
     /**
      * Obtiene un vendedor a partir de su dirección de correo electrónico.
      *

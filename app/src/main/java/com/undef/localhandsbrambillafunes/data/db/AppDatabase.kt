@@ -5,12 +5,14 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
 import com.undef.localhandsbrambillafunes.data.dao.ProductDao
+import com.undef.localhandsbrambillafunes.data.dao.SellerDao
 
 // Importamos las Entidades
 import com.undef.localhandsbrambillafunes.data.entity.User
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
 import com.undef.localhandsbrambillafunes.data.entity.Favorite
 import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.entity.Seller
 
 /**
  * Base de datos principal de la aplicación (Room Database)
@@ -22,8 +24,8 @@ import com.undef.localhandsbrambillafunes.data.entity.Product
  * @method productDao Proporciona acceso al DAO de productos
  */
 @Database(
-    entities = [User::class, Product::class, Favorite::class], // Entidades
-    version = 7, // Incrementar cuando se modifique el esquema
+    entities = [User::class, Product::class, Favorite::class, Seller::class], // Entidades
+    version = 2, // Incrementar cuando se modifique el esquema
     exportSchema = true // Exportar el esquema
 )
 @TypeConverters(Converters::class) //Para cargar List<String> de Product
@@ -46,4 +48,11 @@ abstract class AppDatabase: RoomDatabase() {
      * @return Instancia de [FavoriteDao] para ejecutar operaciones CRUD sobre la base de datos.
      */
     abstract fun favoriteDao(): FavoriteDao
+
+    /**
+     * Proporciona acceso al DAO de vendedores.
+     *
+     * @return Instancia de [SellerDao] para ejecutar operaciones CRUD sobre la base de datos.
+     */
+    abstract fun sellerDao(): SellerDao
 }

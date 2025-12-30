@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -59,6 +61,48 @@ class SellViewModel @Inject constructor(
      * Estado público e inmutable observado por la capa de UI.
      */
     val status: StateFlow<SellerCreationStatus> = _status
+
+    /*
+    * Expone el Flow de vendedores directamente desde el repositorio
+    * Es necesario usar esta variable en caso que se quieran mostrar los vendedores en tiempo real
+    * Es decir, cada vez que se actualicen los mismos con startPeriodicSync()
+    * */
+    val sellers: Flow<List<Seller>> = sellerRepository.getSellers()
+
+    init {
+        // Inicia el proceso de sincronización periódica.
+        startPeriodicSync()
+    }
+
+    /**
+     * Inicia una corrutina que se encarga de refrescar la lista de vendedores
+     * a intervalos regulares.
+     *
+     * La corrutina se ejecutará mientras el ViewModel esté activo y se cancelará
+     * automáticamente cuando el ViewModel sea destruido, evitando memory leaks.
+     */
+    private fun startPeriodicSync() {
+        viewModelScope.launch {
+            // Define el intervalo de refresco en milisegundos.
+            // Por ejemplo, 30000L = 30 segundos.
+            val refreshIntervalMs = 30000L
+
+            // Bucle infinito que se ejecuta mientras la corrutina esté activa.
+            while (true) {
+                println("Sincronizando vendedores desde la API...")
+                try {
+                    // Llama al repositorio para actualizar los datos desde la API.
+                    sellerRepository.refreshSellers()
+                    println("Sincronización de vendedores completada.")
+                } catch (e: Exception) {
+                    // Si ocurre un error de red, lo capturamos para que el bucle no se rompa.
+                    println("Error durante la sincronización periódica: ${e.message}")
+                }
+                // Pausa la corrutina durante el intervalo definido antes de la siguiente ejecución.
+                delay(refreshIntervalMs)
+            }
+        }
+    }
 
     /**
      * Verifica si un usuario ya posee un perfil de vendedor y lo crea en caso contrario.
