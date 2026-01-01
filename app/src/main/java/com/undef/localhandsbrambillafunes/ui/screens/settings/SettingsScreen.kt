@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,14 +47,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController) {
-
-    var selectedCity by remember { mutableStateOf("Rosario, Santa Fe") }
+fun SettingsScreen(navController: NavController,
+                   settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>()
+) {
+    // Se lee la ciudad seleccionada por el usuario en tiempo real a través del ViewModel
+    val selectedCity by settingsViewModel.userLocation.collectAsState()
+    //var selectedCity by remember { mutableStateOf("Rosario, Santa Fe") }
     var selectedFrequency by remember { mutableStateOf("Una vez al día") }
 
     Scaffold(
@@ -160,7 +166,9 @@ fun SettingsScreen(navController: NavController) {
                 /*Desplegable para seleccionar la ubicacion por defecto*/
                 DropdownUbication (
                     selectedCity = selectedCity,
-                    onCitySelected = { selectedCity = it }
+                    onCitySelected = { newCity ->
+                        settingsViewModel.updateUserLocation(newCity)
+                    }
                 )
 
                 Spacer(Modifier.height(16.dp))

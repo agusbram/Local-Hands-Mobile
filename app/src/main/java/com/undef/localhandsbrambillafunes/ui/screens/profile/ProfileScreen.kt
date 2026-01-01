@@ -44,6 +44,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,15 +57,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(navController: NavController,
+                  settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>()
+) {
     //Necesario para crear los Toast
     val context = LocalContext.current
+
+    // Leemos el valor de la ubicacion en tiempo real
+    val userCity by settingsViewModel.userLocation.collectAsState()
 
     //Variables para los campos editables
     var fullName by remember { mutableStateOf("Juan Perez") }
@@ -235,7 +243,7 @@ fun ProfileScreen(navController: NavController) {
                 EditableProfileItem("Correo electrónico", email, isEmailValid) { email = it }
                 EditableProfileItem("Teléfono", phoneNumber, isPhoneValid) { phoneNumber = it }
                 EditableProfileItem("Domicilio", address, isAddressValid) { address = it }
-                EditableProfileItem("Ciudad", city, isCityValid) { city = it }
+                EditableProfileItem("Ciudad", userCity, isCityValid) { city = it }
 
                 Spacer(Modifier.height(24.dp))
 

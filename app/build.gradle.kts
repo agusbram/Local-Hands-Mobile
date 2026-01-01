@@ -103,6 +103,9 @@ dependencies {
     // Dependencia BCrypt para hashear contraseñas
     implementation("at.favre.lib:bcrypt:0.10.2")
 
+    // Dependencia Datastore para persistencia de datos secundarios
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
