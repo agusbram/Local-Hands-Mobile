@@ -2,6 +2,9 @@ package com.undef.localhandsbrambillafunes.data.repository
 
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
 import com.undef.localhandsbrambillafunes.data.entity.User
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Repositorio que actúa como intermediario entre la capa de datos (DAO) y la lógica de negocio.
@@ -11,7 +14,8 @@ import com.undef.localhandsbrambillafunes.data.entity.User
  *
  * @property userDao Objeto DAO que proporciona acceso a los métodos de la base de datos.
  */
-class UserRepository(private val userDao: UserDao) {
+@Singleton
+class UserRepository @Inject constructor(private val userDao: UserDao) {
 
     /**
      * Inserta un nuevo usuario.
@@ -33,34 +37,6 @@ class UserRepository(private val userDao: UserDao) {
     }
 
     /**
-     * Elimina un usuario.
-     *
-     * @param user Usuario a eliminar.
-     */
-//    suspend fun deleteUser(user: User) {
-//        userDao.deleteUser(user)
-//    }
-
-    /**
-     * Obtiene un usuario por su ID.
-     *
-     * @param id ID del usuario.
-     * @return Instancia de [User], o `null` si no se encuentra.
-     */
-//    suspend fun getUserById(id: Int): User? {
-//        return userDao.getUserById(id)
-//    }
-
-    /**
-     * Obtiene todos los usuarios.
-     *
-     * @return Lista de usuarios.
-     */
-//    suspend fun getAllUsers(): List<User> {
-//        return userDao.getAllUsers()
-//    }
-
-    /**
      * Busca un usuario por su correo electrónico.
      *
      * @param email Correo electrónico.
@@ -68,5 +44,15 @@ class UserRepository(private val userDao: UserDao) {
      */
     suspend fun getUserByEmail(email: String): User? {
         return userDao.getUserByEmail(email)
+    }
+
+    /**
+     * Obtiene un usuario por su ID.
+     * Es necesario el Flow para que la UI reacciones a los cambios en la BD en tiempo real
+     * @param id ID del usuario.
+     * @return Instancia Flow de [User], o `null` si no se encuentra.
+     */
+    fun getUserById(id: Int): Flow<User?> {
+        return userDao.getUserByIdFlow(id)
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,6 +42,11 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
          * Clave utilizada para almacenar la ubicación del usuario.
          */
         val USER_LOCATION = stringPreferencesKey("user_location")
+
+        /**
+         * Clave utilizada para almacenar el ID del usuario actualmente logueado.
+         */
+        val USER_ID = intPreferencesKey("user_id")
     }
 
     /**
@@ -71,4 +77,43 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
             preferences[PreferencesKeys.USER_LOCATION] = location
         }
     }
+
+    /**
+     * Flujo reactivo que emite el ID del usuario logueado.
+     *
+     * Este Flow es fundamental para que otras partes de la app (como ProfileViewModel)
+     * sepan qué usuario está activo.
+     *
+     * Si no hay ningún usuario logueado, emite -1 como valor por defecto.
+     */
+    val userIdFlow: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.USER_ID] ?: -1
+        }
+
+    /**
+     * Guarda el ID del usuario que acaba de iniciar sesión.
+     *
+     * Se debe llamar a esta función después de un login exitoso.
+     *
+     * @param userId El ID del usuario a guardar.
+     */
+    suspend fun saveUserId(userId: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USER_ID] = userId
+        }
+    }
+
+    /**
+     * Limpia el ID del usuario guardado.
+     *
+     * Se debe llamar a esta función cuando el usuario cierra sesión (logout)
+     * para asegurar que los datos del perfil no se muestren a la persona equivocada.
+     */
+    suspend fun clearUserId() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferencesKeys.USER_ID)
+        }
+    }
+
 }
