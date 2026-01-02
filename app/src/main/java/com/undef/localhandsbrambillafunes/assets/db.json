@@ -1,0 +1,14 @@
+{
+  "sellers": [
+    {
+      "id": 1,
+      "address": "Av Fuerza Aerea Argentina",
+      "email": "agustinbram@gmail.com",
+      "entrepreneurship": "Alablublu",
+      "lastname": "Brambilla",
+      "name": "Agustin",
+      "phone": "3541207081"
+    }
+  ],
+  "products": []
+}

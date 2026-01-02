@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,16 +36,21 @@ import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(
     navController: NavController,
-    sessionViewModel: SessionViewModel,
-    favoriteViewModel: FavoriteViewModel
+    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>()
 ) {
-    val userId = sessionViewModel.getUserId()
-    val favorites by favoriteViewModel.getFavoritesForUser(userId).collectAsState(initial = emptyList())
+    /*Cargamos la lista de productos favoritos actuales en la UI a través de corrutinas
+    (ya que loadFavorites utiliza StateFlow y no tipos de variables estáticas)*/
+    LaunchedEffect(Unit) {
+        favoriteViewModel.loadFavorites()
+    }
+    val favorites by favoriteViewModel.favorites.collectAsState()
 
 
     Scaffold(
@@ -127,7 +133,7 @@ fun FavoritesScreen(
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegacion */ }
+                    onClick = { navController.navigate(route = AppScreens.SellScreen.route) }
                 )
                 // Boton de Categorias
                 NavigationBarItem(

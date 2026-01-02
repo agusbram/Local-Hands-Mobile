@@ -145,6 +145,18 @@ class AuthRepository @Inject constructor(
     }
 
     /**
+     * Obtiene el correo electrónico del usuario actualmente autenticado
+     * @return Email del usuario o null si no hay sesión activa
+     */
+    suspend fun getCurrentUserEmail(): String? {
+        return if(isUserLoggedIn()) {
+            sharedPreferences.getString(KEY_USER_EMAIL, null)
+        } else {
+            null
+        }
+    }
+
+    /**
      * Obtiene el usuario actualmente autenticado
      * @return Usuario actual o null si no hay sesión activa
      */

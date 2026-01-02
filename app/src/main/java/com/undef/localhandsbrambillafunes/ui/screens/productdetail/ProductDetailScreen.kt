@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -59,9 +60,9 @@ import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.data.model.FavoriteProducts
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
-import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import coil.compose.AsyncImage
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 
 
 /**
@@ -73,8 +74,7 @@ import androidx.compose.runtime.getValue
 fun ProductDetailScreen(
     navController: NavController,
     product: Product,
-    sessionViewModel: SessionViewModel,
-    favoriteViewModel: FavoriteViewModel
+    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>()
 ) {
 
     // Estado para manejar la lista de imágenes del producto
@@ -83,14 +83,16 @@ fun ProductDetailScreen(
     // Control del visor de imágenes
     val pagerState = rememberPagerState(pageCount = { productImages.size })
 
-    // Traemos el userId global  creado previamente en el registro del mismo
-    val userId = sessionViewModel.getUserId()
+    /*Cargamos la lista de productos favoritos actuales en la UI*/
+    LaunchedEffect(Unit) {
+        favoriteViewModel.loadFavorites()
+    }
+    val favorites by favoriteViewModel.favorites.collectAsState()
 
-    // Observa la lista de favoritos del usuario desde la base de datos
-    val favoritos by favoriteViewModel.getFavoritesForUser(userId).collectAsState(initial = emptyList())
+
 
     // Estado para el favorito del producto de la base de datos
-    val isFavorite = favoritos.any { it.id == product.id }
+    val isFavorite = favorites.any { it.id == product.id }
 
     Scaffold(
         // Barra superior con botón de retroceso
@@ -181,7 +183,7 @@ fun ProductDetailScreen(
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegacion */ }
+                    onClick = { navController.navigate(AppScreens.SellScreen.route)}
                 )
                 // Boton de Categorias
                 NavigationBarItem(
@@ -226,8 +228,8 @@ fun ProductDetailScreen(
                     onClick = {
                         if (isFavorite) {
                             // Busca la instancia Favorite correcta en la lista
-                            val fav = favoritos.find { it.id == product.id }
-                            fav?.let { favoriteViewModel.removeFavoriteByProductId(userId, product.id) }
+                            val fav = favorites.find { it.id == product.id }
+                            fav?.let { favoriteViewModel.removeFavoriteByProductId(product.id) }
                             FavoriteProducts.removeToFavorite(product.id)
                         } else {
                             FavoriteProducts.addToFavorite(product)

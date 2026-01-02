@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
@@ -52,13 +53,19 @@ import java.io.File
 fun EditProductScreen(
     navController: NavController,
     productId: Int,
-    productViewModel: ProductViewModel,
-    sessionViewModel: SessionViewModel
+    productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+    sessionViewModel: SessionViewModel = hiltViewModel<SessionViewModel>()
 ) {
-    // Obtenemos el usuario actual de la sesión
-    val context = LocalContext.current
-    val userId by sessionViewModel.userId.collectAsState()
+    /*Para obtener el id actual del usuario reflejado en la UI en tiempo real*/
+    val currentUserIdState = remember { mutableStateOf<Int?>(null) }
 
+    /*Llamamos a una funcion suspend con corrutinas para obtener el currentUserId*/
+    LaunchedEffect(Unit) {
+        val currentUserId = sessionViewModel.getCurrentUserId()
+        currentUserIdState.value = currentUserId
+    }
+
+    //Todos los productos actuales
     val allProducts by productViewModel.products.collectAsState()
 
     // Estado para evitar recomposición hasta que se cargue el producto
@@ -210,12 +217,13 @@ fun EditProductScreen(
                             images = images,
                             price = price.toDoubleOrNull() ?: 0.0,
                             location = location,
-                            ownerId = userId ?: originalProduct?.ownerId
+                            ownerId = currentUserIdState.value ?: originalProduct?.ownerId
                         )
                         if (isEditing) {
                             productViewModel.updateProduct(entity)
                         } else {
                             productViewModel.addProduct(entity)
+                            productViewModel.addProductByApi(entity)
                         }
                         navController.popBackStack() // Vuelve a la lista
                     },
