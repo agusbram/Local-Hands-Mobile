@@ -103,6 +103,11 @@ dependencies {
     // Dependencia BCrypt para hashear contraseñas
     implementation("at.favre.lib:bcrypt:0.10.2")
 
+    // Dependencia de Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // Converter de Gson para Retrofit
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

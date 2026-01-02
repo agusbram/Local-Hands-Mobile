@@ -1,11 +1,14 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
+import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
+import com.undef.localhandsbrambillafunes.data.dao.ProductDao
 import com.undef.localhandsbrambillafunes.data.entity.Product
-import com.undef.localhandsbrambillafunes.data.db.AppDatabase
 import com.undef.localhandsbrambillafunes.data.entity.Favorite
+import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 /**
  * El flujo recomendado es el siguiente: **DAO → Repository → ViewModel → UI (Compose)**.
@@ -26,9 +29,50 @@ import kotlinx.coroutines.withContext
  * --> Facilita pruebas unitarias porque se puede simular fácilmente.
  *
  * --> Mejora la escalabilidad y mantenibilidad del código.
- * @param AppDatabase base de datos de productos.
+ *
+ * @property productDao Acceso local a los productos (Room).
+ * @property favoriteDao Acceso local a los productos favoritos (Room).
+ * @property api Servicio que interactúa con la API remota de productos.
  * */
-class ProductRepository(private val db: AppDatabase) {
+class ProductRepository @Inject constructor(
+    private val productDao: ProductDao,
+    private val favoriteDao: FavoriteDao,
+    private val api: ApiService
+    ) {
+    /**
+     * Obtiene todos los productos disponibles desde la API remota.
+     *
+     * Esta función realiza una solicitud HTTP GET al endpoint `/products`
+     * a través de Retrofit, devolviendo una lista de productos en formato JSON.
+     *
+     * @return Lista de [Product] obtenidos del servidor.
+     * @throws IOException si hay errores de red.
+     */
+    suspend fun getProducts() = api.getProducts()
+
+    /**
+     * Obtiene los productos publicados por un usuario emprendedor específico.
+     *
+     * Esta función consulta el endpoint `/products` agregando el parámetro
+     * de consulta `ownerId` para filtrar por productos del dueño.
+     *
+     * @param ownerId ID del usuario que publicó los productos.
+     * @return Lista de [Product] asociados al dueño especificado.
+     * @throws IOException si la red falla o la API devuelve un error.
+     */
+    suspend fun getProductsByOwnerId(ownerId: Int?) = api.getProductsByOwner(ownerId)
+
+    /**
+     * Envía un nuevo producto al servidor para que sea persistido.
+     *
+     * Esta función realiza una solicitud HTTP POST al endpoint `/products`
+     * enviando los datos del producto en formato JSON como cuerpo de la petición.
+     *
+     * @param product Instancia de [Product] que se desea agregar al backend.
+     * @return El producto creado con su ID asignado por el servidor.
+     * @throws IOException en caso de fallo en la conexión o error de la API.
+     */
+    suspend fun addProduct(product: Product) = api.addProduct(product)
 
     /**
      * Obtiene todos los productos como un flujo reactivo.
@@ -36,7 +80,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return Un [Flow] que emite listas de productos almacenados en la base de datos.
      */
     fun getAllProducts(): Flow<List<Product>> {
-        return db.productDao().getAllProducts()
+        return productDao.getAllProducts()
     }
 
     /**
@@ -47,7 +91,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @param id El identificador único del producto que se desea obtener.
      * @return Una instancia de [Product] correspondiente al ID proporcionado, o `null` si no se encuentra ningún producto con ese ID.
      */
-    fun getProductById(id: Int) = db.productDao().getProductById(id)
+    fun getProductById(id: Int) = productDao.getProductById(id)
 
     /**
      * Obtiene un flujo reactivo con todos los productos publicados por un usuario específico.
@@ -60,7 +104,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return Un flujo (`Flow`) que emite listas de productos asociados al vendedor.
      */
     fun getProductsByOwner(ownerId: Int): Flow<List<Product>> =
-        db.productDao().getProductsByOwner(ownerId)
+        productDao.getProductsByOwner(ownerId)
 
     /**
      * Obtiene una lista de productos filtrados por una categoría específica.
@@ -70,7 +114,7 @@ class ProductRepository(private val db: AppDatabase) {
      */
     suspend fun getProductsByCategory(category: String): List<Product> =
         withContext(Dispatchers.IO) {
-            db.productDao().getProductsByCategory(category)
+            productDao.getProductsByCategory(category)
         }
 
     /**
@@ -80,7 +124,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return El ID generado para el nuevo producto.
      */
     suspend fun insertProduct(product: Product): Long = withContext(Dispatchers.IO) {
-        db.productDao().addProduct(product)
+        productDao.addProduct(product)
     }
 
     /**
@@ -90,7 +134,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return Lista de productos localizados en la ciudad especificada.
      */
     suspend fun getProductsByCity(location: String): List<Product> = withContext(Dispatchers.IO) {
-        db.productDao().getProductsByCity(location)
+        productDao.getProductsByCity(location)
     }
 
     /**
@@ -100,7 +144,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return Lista de productos asociados a vendedores con ese nombre.
      */
     suspend fun searchProductsBySeller(name: String): List<Product> = withContext(Dispatchers.IO) {
-        db.productDao().searchProductsBySeller(name)
+        productDao.searchProductsBySeller(name)
     }
 
     /**
@@ -109,7 +153,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @param product Producto con la información actualizada.
      */
     suspend fun updateProduct(product: Product) = withContext(Dispatchers.IO) {
-        db.productDao().updateProduct(product)
+        productDao.updateProduct(product)
     }
 
     /**
@@ -118,7 +162,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @param product Producto que se desea eliminar.
      */
     suspend fun deleteProduct(product: Product) = withContext(Dispatchers.IO) {
-        db.productDao().deleteProduct(product)
+        productDao.deleteProduct(product)
     }
 
     /**
@@ -128,7 +172,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @param products Lista de productos a insertar o actualizar.
      */
     suspend fun insertAll(products: List<Product>) = withContext(Dispatchers.IO) {
-        db.productDao().insertAll(products)
+        productDao.insertAll(products)
     }
 
     // --- FAVORITOS ---
@@ -143,7 +187,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @return Un `Flow` que emite listas de productos favoritos en tiempo real.
      */
     fun getFavoritesForUser(userId: Int): Flow<List<Product>> =
-        db.favoriteDao().getFavoritesForUser(userId)
+        favoriteDao.getFavoritesForUser(userId)
 
     /**
      * Agrega un producto a la lista de favoritos de un usuario.
@@ -156,7 +200,7 @@ class ProductRepository(private val db: AppDatabase) {
      * @param productId ID del producto que se desea agregar a la lista de favoritos.
      */
     suspend fun addFavorite(userId: Int, productId: Int) = withContext(Dispatchers.IO) {
-        db.favoriteDao().addFavorite(Favorite(userId, productId))
+        favoriteDao.addFavorite(Favorite(userId, productId))
     }
 
     /**
@@ -169,6 +213,6 @@ class ProductRepository(private val db: AppDatabase) {
      * @param productId ID del producto a eliminar de la lista de favoritos.
      */
     suspend fun removeFavorite(userId: Int, productId: Int) = withContext(Dispatchers.IO) {
-        db.favoriteDao().removeFavoriteByUserAndProduct(userId, productId)
+        favoriteDao.removeFavByUserAndProduct(userId, productId)
     }
 }

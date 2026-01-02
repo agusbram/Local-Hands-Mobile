@@ -2,7 +2,10 @@ package com.undef.localhandsbrambillafunes.data.repository
 
 import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
 import com.undef.localhandsbrambillafunes.data.entity.Favorite
+import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.exception.NotAuthenticatedException
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 /**
  * Repositorio encargado de manejar las operaciones relacionadas con la entidad `Favorite`.
@@ -12,7 +15,7 @@ import com.undef.localhandsbrambillafunes.data.exception.NotAuthenticatedExcepti
  *
  * @param favoriteDao Instancia de `FavoriteDao` utilizada para ejecutar las operaciones sobre la base de datos.
  */
-class FavoriteRepository(
+class FavoriteRepository @Inject constructor(
     private val favoriteDao: FavoriteDao,
     private val authRepository: AuthRepository // Añadir dependencia
 ) {
@@ -32,8 +35,11 @@ class FavoriteRepository(
      * @param userId Identificador único del usuario.
      * @param productId Identificador único del producto.
      */
-    suspend fun removeFavorite(userId: Int, productId: Int) {
-        favoriteDao.removeFavoriteByUserAndProduct(userId, productId)
+    suspend fun removeFavorite(productId: Int) {
+        val currentUserId = authRepository.getCurrentUserId()
+            ?: throw NotAuthenticatedException("User not logged in")
+
+        favoriteDao.removeFavByUserAndProduct(currentUserId, productId)
     }
 
     /**
@@ -42,7 +48,12 @@ class FavoriteRepository(
      * @param userId Identificador único del usuario.
      * @return Un `Flow` que emite la lista de objetos `Favorite` del usuario.
      */
-    fun getFavoritesForUser(userId: Int) = favoriteDao.getFavoritesForUser(userId)
+    suspend fun getFavoritesForUser(): Flow<List<Product>> {
+        val currentUserId = authRepository.getCurrentUserId()
+            ?: throw NotAuthenticatedException("User not logged in")
+
+        return favoriteDao.getFavoritesForUser(currentUserId)
+    }
 
     /**
      * Agrega un producto a favoritos para el usuario actualmente autenticado.

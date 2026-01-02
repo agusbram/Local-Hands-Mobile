@@ -23,7 +23,7 @@ interface UserDao {
      * @param email Email del usuario
      * @return Usuario o null si no existe
      */
-    @Query("SELECT * FROM users WHERE email = :email")
+    @Query("SELECT * FROM UserEntity WHERE email = :email")
     suspend fun getUserByEmail(email: String): User?
 
     /**
@@ -33,7 +33,7 @@ interface UserDao {
      * @param password Contraseña en texto plano
      * @return Usuario autenticado o null
      */
-    @Query("SELECT * FROM users WHERE email = :email AND password = :password")
+    @Query("SELECT * FROM UserEntity WHERE email = :email AND password = :password")
     suspend fun authenticateUser(email: String, password: String): User?
 
     /**
@@ -58,7 +58,7 @@ interface UserDao {
      *
      * @param email Email a verificar
      */
-    @Query("UPDATE users SET isEmailVerified = 1, verificationCode = NULL WHERE email = :email")
+    @Query("UPDATE UserEntity SET isEmailVerified = 1, verificationCode = NULL WHERE email = :email")
     suspend fun verifyEmail(email: String)
 
     /**
@@ -67,7 +67,7 @@ interface UserDao {
      * @param email Email del usuario
      * @param code Nuevo código de verificación
      */
-    @Query("UPDATE users SET verificationCode = :code WHERE email = :email")
+    @Query("UPDATE UserEntity SET verificationCode = :code WHERE email = :email")
     suspend fun updateVerificationCode(email: String, code: String)
 
     /**
@@ -77,7 +77,7 @@ interface UserDao {
      * @param code Código a verificar
      * @return Usuario si código válido, null si no
      */
-    @Query("SELECT * FROM users WHERE email = :email AND verificationCode = :code COLLATE NOCASE LIMIT 1")
+    @Query("SELECT * FROM UserEntity WHERE email = :email AND verificationCode = :code COLLATE NOCASE LIMIT 1")
     suspend fun verifyCode(email: String, code: String): User?
 
     /**
@@ -87,7 +87,7 @@ interface UserDao {
      * @param newPassword Nueva contraseña (debe estar hasheada)
      * @return Número de filas actualizadas
      */
-    @Query("UPDATE users SET password = :newPassword WHERE email = :email COLLATE NOCASE")
+    @Query("UPDATE UserEntity SET password = :newPassword WHERE email = :email COLLATE NOCASE")
     suspend fun updatePassword(email: String, newPassword: String): Int
 
     /**
@@ -96,7 +96,7 @@ interface UserDao {
      * @param email Email a verificar
      * @return 1 si existe, 0 si no
      */
-    @Query("SELECT COUNT(*) FROM users WHERE email = :email")
+    @Query("SELECT COUNT(*) FROM UserEntity WHERE email = :email")
     suspend fun isEmailExists(email: String): Int
 
     /**
@@ -105,12 +105,12 @@ interface UserDao {
      * @param id ID del usuario.
      * @return Instancia de [User], o `null` si no se encuentra.
      */
-    @Query("SELECT * FROM users WHERE id = :id")
-    suspend fun getUserById(id: Int): User?
+    @Query("SELECT * FROM UserEntity WHERE id = :id")
+    suspend fun getUserById(id: Int): User
 
     /**
      * Elimina todos los usuarios (SOLO PARA PRUEBAS)
      */
-    @Query("DELETE FROM users")
+    @Query("DELETE FROM UserEntity")
     suspend fun deleteAllUsers()
 }

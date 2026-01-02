@@ -2,12 +2,21 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.session
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.entity.User
+import com.undef.localhandsbrambillafunes.data.exception.NotAuthenticatedException
+import com.undef.localhandsbrambillafunes.data.repository.AuthRepository
+import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel responsable de gestionar el estado de sesión del usuario autenticado.
@@ -22,126 +31,90 @@ import kotlinx.coroutines.launch
  * @param application Instancia de la aplicación requerida por [AndroidViewModel].
  * @param userRepository Repositorio opcional para validar información del usuario.
  */
-class SessionViewModel(
-    application: Application,
-    private val userRepository: UserRepository
-) : AndroidViewModel(application) {
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository,
+    private val sellerRepository: SellerRepository
+) : ViewModel() {
+    // Caché para guardar los datos del vendedor una vez obtenidos
+    private var currentSeller: Seller? = null
 
     /**
-     * Flujo interno y mutable que contiene el ID del usuario actualmente autenticado.
-     * Es `null` si no hay una sesión activa
-     * Es un flujo mutable interno (privado) que guarda el estado actual del ID del usuario logueado.
-     * Puede cambiar con setUserId() o clearSession().
+     * Obtiene el perfil completo del vendedor actual y lo guarda en caché.
+     * Si ya está en caché, lo devuelve directamente para evitar llamadas innecesarias a la API.
+     * @return El objeto Seller del usuario actual, o null si no se encuentra.
      */
-    private val _userId = MutableStateFlow<Int?>(null)
-
-    /**
-     * Flujo inmutable expuesto públicamente que representa el ID del usuario autenticado.
-     * Las clases consumidoras pueden observar este flujo para reaccionar a los cambios de sesión.
-     * Es la exposición pública e inmutable de ese flujo. Lo usás cuando querés observar los
-     * cambios en tiempo real (por ejemplo, en la UI con collectAsState() en Jetpack Compose).
-     */
-    val userId: StateFlow<Int?> = _userId
-
-    /**
-     * Flujo que representa el resultado del intento de inicio de sesión.
-     */
-    private val _loginResult = MutableStateFlow<LoginResult>(LoginResult.Idle)
-    val loginResult: StateFlow<LoginResult> = _loginResult
-
-    /**
-     * Establece el ID del usuario autenticado en la sesión actual.
-     *
-     * Este método debe llamarse luego de un inicio de sesión exitoso,
-     * para guardar el identificador del usuario en el flujo de estado `_userId`,
-     * permitiendo que otros componentes de la aplicación reaccionen
-     * al cambio de estado de autenticación.
-     *
-     * @param id Identificador único del usuario autenticado.
-     */
-    fun setUserId(id: Int) {
-        _userId.value = id
-    }
-
-    /**
-     *
-     * Útil para lógica puntual en ViewModel donde necesitás el valor actual
-     * (por ejemplo, enviar el userId a un repositorio o guardarlo en otro lado).
-     *
-     * ## Cuando no conviene usarlo:
-     *
-     * En la UI, si querés mostrar algo que cambie dinámicamente al iniciar o cerrar sesión.
-     *
-     * Si querés observar si el usuario cambió y actualizar algo automáticamente (por ejemplo,
-     * mostrar los productos favoritos del nuevo usuario logueado).
-     */
-    fun getUserId(): Int {
-        return _userId.value ?: 0
-    }
-
-    /**
-     * Limpia la sesión de usuario actual.
-     *
-     * Este método debe invocarse al cerrar sesión, eliminando
-     * cualquier rastro del usuario autenticado al establecer
-     * el valor de `_userId` como `null`. De esta forma, se
-     * indica que no hay un usuario actualmente autenticado.
-     */
-    fun clearSession() {
-        _userId.value = null
-    }
-
-    /**
-     * Intenta autenticar a un usuario mediante correo electrónico y contraseña.
-     *
-     * @param email Correo electrónico ingresado por el usuario.
-     * @param password Contraseña correspondiente.
-     */
-    fun login(email: String, password: String) {
-        viewModelScope.launch {
-            val user = userRepository.getUserByEmail(email)
-
-            if (user == null) {
-                _loginResult.value = LoginResult.UserNotFound
-            } else if (user.password != password) {
-                _loginResult.value = LoginResult.InvalidPassword
-            } else {
-                _userId.value = user.id
-                _loginResult.value = LoginResult.Success(user.id)
-            }
+    private suspend fun fetchAndCacheCurrentSeller(): Seller? {
+        // Si ya lo tenemos en memoria, lo devolvemos directamente
+        if (currentSeller != null) {
+            return currentSeller
         }
+
+        // Si no, obtenemos el email del usuario logueado
+        val userEmail = authRepository.getCurrentUserEmail() ?: return null
+
+        // Usamos el repositorio para buscar al vendedor por su email a través de la API
+        currentSeller = sellerRepository.getSellerByEmail(userEmail)
+        return currentSeller
     }
 
     /**
-     * Registra un nuevo usuario.
-     *
-     * @param user Instancia del usuario a registrar.
-     * @param onResult Callback que se llama con el ID generado por la base de datos.
-    */
-    fun registerUser(user: User, onResult: (Long) -> Unit) {
-        viewModelScope.launch {
-            val id = userRepository.insertUser(user)
-            onResult(id)
-        }
+     * Obtenemos el id del usuario autenticado de la sesión actual
+     * */
+    suspend fun getCurrentUserId(): Int?  {
+        return  authRepository.getCurrentUserId()
+            ?: throw NotAuthenticatedException("User not logged in")
     }
 
     /**
-     * Cierra la sesión eliminando el estado del usuario autenticado.
+     * Obtiene el ID del vendedor autenticado.
      */
-    fun logout() {
-        viewModelScope.launch {
-            _userId.value = null
-            _loginResult.value = LoginResult.Idle
-        }
+    suspend fun getCurrentSellerId(): Int?  {
+        // Puedes mantener tu lógica original si es más directa
+        // O puedes obtenerlo del perfil del vendedor
+        return fetchAndCacheCurrentSeller()?.id
     }
 
     /**
-     * Representa los posibles resultados del intento de inicio de sesión.
+     * Obtiene el email del vendedor autenticado.
      */
-    sealed class LoginResult {
-        object Idle : LoginResult()
-        data class Success(val userId: Int) : LoginResult()
-        object UserNotFound : LoginResult()
-        object InvalidPassword : LoginResult()
+    suspend fun getCurrentSellerEmail(): String? {
+        return fetchAndCacheCurrentSeller()?.email
+    }
+
+    /**
+     * Obtiene el nombre del vendedor autenticado.
+     */
+    suspend fun getCurrentSellerName(): String? {
+        return fetchAndCacheCurrentSeller()?.name
+    }
+
+    /**
+     * Obtiene el apellido del vendedor autenticado.
+     */
+    suspend fun getCurrentSellerLastName(): String? {
+        return fetchAndCacheCurrentSeller()?.lastname
+    }
+
+    /**
+     * Obtiene el nombre del emprendimiento del vendedor autenticado.
+     */
+    suspend fun getCurrentSellerEntrepreneurship(): String? {
+        return fetchAndCacheCurrentSeller()?.entrepreneurship
+    }
+
+    /**
+     * Obtiene el teléfono del vendedor autenticado.
+     */
+    suspend fun getCurrentSellerPhone(): String? {
+        return fetchAndCacheCurrentSeller()?.phone
+    }
+
+    /**
+     * Obtiene la dirección del vendedor autenticado.
+     */
+    suspend fun getCurrentSellerAddress(): String? {
+        return fetchAndCacheCurrentSeller()?.address
     }
 }
