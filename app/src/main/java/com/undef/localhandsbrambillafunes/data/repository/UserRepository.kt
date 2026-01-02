@@ -3,6 +3,9 @@ package com.undef.localhandsbrambillafunes.data.repository
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
 import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.entity.User
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import javax.inject.Inject
 
@@ -109,5 +112,15 @@ class UserRepository @Inject constructor(
      */
     suspend fun getUserByEmail(email: String): User? {
         return userDao.getUserByEmail(email)
+    }
+
+    /**
+     * Obtiene un usuario por su ID.
+     * Es necesario el Flow para que la UI reacciones a los cambios en la BD en tiempo real
+     * @param id ID del usuario.
+     * @return Instancia Flow de [User], o `null` si no se encuentra.
+     */
+    fun getUserById(id: Int): Flow<User?> {
+        return userDao.getUserByIdFlow(id)
     }
 }

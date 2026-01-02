@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +31,11 @@ import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -44,6 +47,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,32 +60,43 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(navController: NavController,
+                  settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
+                  profileViewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>()
+) {
+    // Observamos el estado de los campos de edición en tiempo real
+    val editState by profileViewModel.editState.collectAsState()
+
+    /**
+     * Se obtiene el perfil del usuario logueado en la sesión actual
+     * en tiempo real gracias a DataStore
+     * */
+    val userProfile by profileViewModel.userProfile.collectAsState()
+
     //Necesario para crear los Toast
     val context = LocalContext.current
 
-    //Variables para los campos editables
-    var fullName by remember { mutableStateOf("Juan Perez") }
-    var email by remember { mutableStateOf("usuario@gmail.com") }
-    var phoneNumber by remember { mutableStateOf("+543411234567") }
-    var address by remember { mutableStateOf("Av. Pellegrini 1234") }
-    var city by remember { mutableStateOf("Rosario, Santa Fe") }
+    // Leemos el valor de la ubicacion en tiempo real
+    val userCity by settingsViewModel.userLocation.collectAsState()
 
     //Para validar los datos del usuario
-    val isNameValid = fullName.length >= 10
-    val isEmailValid = isValidEmail(email)
-    val isPhoneValid = isValidPhone(phoneNumber)
-    val isAddressValid = address.length >= 10
-    val isCityValid = city.length >= 10
+    val isNameValid = editState.name.length >= 3
+    val isLastNameValid = editState.lastName.length >= 3
+    val isEmailValid = isValidEmail(editState.email)
+    val isPhoneValid = isValidPhone(editState.phone)
+    val isAddressValid = editState.address.length >= 5
 
     //Para validar que el formulario esté completo para guardar los cambios
-    val isFormValid = isNameValid && isEmailValid && isPhoneValid && isAddressValid && isCityValid
+    val isFormValid = isNameValid && isLastNameValid && isEmailValid && isPhoneValid && isAddressValid
 
 
     //Variables para dialog de contraseña
@@ -231,11 +246,78 @@ fun ProfileScreen(navController: NavController) {
 
                 //Info personal
                 //Campos editables: nombre completo, teléfono, domicilio y ciudad
-                EditableProfileItem("Nombre completo", fullName, isNameValid) { fullName = it }
-                EditableProfileItem("Correo electrónico", email, isEmailValid) { email = it }
-                EditableProfileItem("Teléfono", phoneNumber, isPhoneValid) { phoneNumber = it }
-                EditableProfileItem("Domicilio", address, isAddressValid) { address = it }
-                EditableProfileItem("Ciudad", city, isCityValid) { city = it }
+
+                // Si el email está vacío, significa que los datos aún no se han cargado.
+                if (editState.email.isBlank()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    // Cuando los datos están cargados, mostramos los campos.
+                    EditableProfileItem(
+                        label = "Nombre",
+                        value = editState.name,
+                        isValid = isNameValid,
+                        onValueChange = profileViewModel::onNameChange
+                    )
+
+                    EditableProfileItem(
+                        label = "Apellido",
+                        value = editState.lastName,
+                        isValid = isLastNameValid,
+                        onValueChange = profileViewModel::onLastnameChange
+                    )
+
+                    EditableProfileItem(
+                        label = "Correo Electrónico",
+                        value = editState.email,
+                        isValid = isEmailValid,
+                        onValueChange = profileViewModel::onEmailChange
+                    )
+
+                    EditableProfileItem(
+                        label = "Domicilio",
+                        value = editState.address,
+                        isValid = isAddressValid,
+                        onValueChange = profileViewModel::onAddressChange
+                    )
+
+                    EditableProfileItem(
+                        label = "Teléfono",
+                        value = editState.phone,
+                        isValid = isPhoneValid,
+                        onValueChange = profileViewModel::onPhoneChange
+                    )
+
+                    /**
+                    * Campo de ciudad actual.
+                     * Solamente modificable desde la pantalla de configuración
+                    * */
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Ciudad",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = MaterialTheme.shapes.small
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = userCity,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(24.dp))
 
@@ -256,6 +338,8 @@ fun ProfileScreen(navController: NavController) {
 
                 Button(
                     onClick = {
+                        // Se guardan los datos del perfil del usuario en la tabla User de la BD de Room
+                        profileViewModel.saveProfileChanges()
                         Toast.makeText(
                             context,
                             "Cambios guardados correctamente",
@@ -307,6 +391,9 @@ fun ProfileScreen(navController: NavController) {
                     LogoutConfirmationDialog(
                         //En el caso que se seleccione que si se desea cerrar sesión, navega hacia la pantalla de login, evitando que se pueda volver hacia esta pantalla de perfil
                         onConfirm = {
+                            // Se limpia la sesión del usuario actualmente logueado
+                            profileViewModel.logout()
+
                             Toast.makeText(context, "Sesión cerrada", Toast.LENGTH_SHORT).show()
                             showLogoutDialog = false
                             navController.navigate(AppScreens.LoginScreen.route) {  //Redirige a la pantalla de login
@@ -340,9 +427,13 @@ fun isValidEmail(email: String): Boolean {
 
 //Valida que el teléfono tenga el formato correcto
 fun isValidPhone(phone: String): Boolean {
-    val regex = Regex("^\\+\\d{12,15}$") // Ej: +54123456789
-    return regex.matches(phone)
+    // Elimina todo lo que no sea número
+    val digitsOnly = phone.filter { it.isDigit() }
+
+    // Argentina: mínimo 10 dígitos, máximo 15 (con prefijos)
+    return digitsOnly.length in 10..15
 }
+
 
 //Cada campo de texto a editar del perfil
 @Composable

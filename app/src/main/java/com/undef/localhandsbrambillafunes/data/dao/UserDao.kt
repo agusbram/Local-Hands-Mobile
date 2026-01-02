@@ -2,6 +2,7 @@ package com.undef.localhandsbrambillafunes.data.dao
 
 import androidx.room.*
 import com.undef.localhandsbrambillafunes.data.entity.User
+import kotlinx.coroutines.flow.Flow
 
 
 /**
@@ -107,6 +108,16 @@ interface UserDao {
      */
     @Query("SELECT * FROM UserEntity WHERE id = :id")
     suspend fun getUserById(id: Int): User
+
+    /**
+     * Obtiene un usuario por su ID.
+     * Es necesario el Flow para que la UI reacciones a los cambios en la BD en tiempo real
+     *
+     * @param id ID del usuario.
+     * @return Instancia Flow de [User], o `null` si no se encuentra.
+     */
+    @Query("SELECT * FROM users WHERE id = :id")
+    fun getUserByIdFlow(id: Int): Flow<User?>
 
     /**
      * Elimina todos los usuarios (SOLO PARA PRUEBAS)

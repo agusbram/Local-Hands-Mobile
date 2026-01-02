@@ -2,6 +2,7 @@ package com.undef.localhandsbrambillafunes.data.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import androidx.room.Index
 
@@ -34,4 +35,9 @@ data class User(
     val isEmailVerified: Boolean = false, // Por defecto no verificado
     val verificationCode: String? = null, // Código opcional para verificación TODO: tengo que hacer pruebas
     val createdAt: Long = System.currentTimeMillis() // Timestamp de creación
-)
+) {
+    // Propiedad para obtener el nombre completo fácilmente
+    // Con ignore, fullName no se guardará en la base de datos
+    @Ignore
+    val fullName: String = "$name $lastName"
+}
