@@ -1,109 +1,327 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
+import android.util.Log
 import com.undef.localhandsbrambillafunes.data.dao.SellerDao
+import com.undef.localhandsbrambillafunes.data.dao.UserDao
+import com.undef.localhandsbrambillafunes.data.dto.SellerPatchDTO
 import com.undef.localhandsbrambillafunes.data.entity.Seller
+import com.undef.localhandsbrambillafunes.data.entity.User
+import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repositorio encargado de gestionar las operaciones relacionadas con la entidad [Seller].
+ * Repositorio encargado de gestionar las operaciones relacionadas
+ * con la entidad [Seller].
  *
- * Esta clase actúa como una capa intermedia entre la fuente de datos remota
- * ([ApiService]) y el resto de la aplicación, encapsulando la lógica de acceso
- * a datos y manejo de errores.
+ * Esta clase actúa como una capa intermedia entre:
+ * - La fuente de datos remota ([ApiService])
+ * - La base de datos local (Room mediante [SellerDao])
  *
- * Está anotada con [Singleton] para garantizar una única instancia durante
- * el ciclo de vida de la aplicación.
+ * Centraliza la lógica de sincronización, actualización,
+ * conversión de usuarios y manejo de errores, desacoplando
+ * a la capa de presentación de los detalles de implementación.
  *
- * @property apiService Servicio remoto que expone los endpoints relacionados con vendedores.
+ * Está anotada con [Singleton] para garantizar una única instancia
+ * durante el ciclo de vida de la aplicación.
+ *
+ * @property apiService Servicio remoto que expone los endpoints de vendedores.
+ * @property sellerDao DAO local para persistencia de vendedores.
+ * @property userDao DAO local para operaciones sobre usuarios.
  */
 @Singleton
 class SellerRepository @Inject constructor(
     private val apiService: ApiService,
-    private val sellerDao: SellerDao
+    private val sellerDao: SellerDao,
+    private val userDao: UserDao
 ) {
-    /**
-     * Esta es la ÚNICA función que la UI usará para obtener los vendedores.
-     * Devuelve un Flow directamente desde Room (Fuente de Verdad Única).
-     */
-    fun getSellers(): Flow<List<Seller>> {
-        return sellerDao.getAllSellers()
-    }
 
     /**
-     * Actualiza la base de datos local con los datos de la API.
-     * Esta función se llamará al iniciar la app o a intervalos regulares.
+     * Convierte un usuario existente en vendedor.
+     *
+     * El proceso incluye:
+     * - Creación o actualización del vendedor en la API remota
+     * - Persistencia del vendedor en la base de datos local
+     * - Actualización del rol del usuario a [UserRole.SELLER]
+     *
+     * Se reutiliza el ID del usuario como ID del vendedor,
+     * garantizando consistencia entre entidades.
+     *
+     * @param user Usuario a convertir en vendedor.
+     * @param entrepreneurshipName Nombre del emprendimiento asociado.
+     *
+     * @return [Result] indicando éxito o fallo de la operación.
      */
-    suspend fun refreshSellers() {
-        try {
-            // 1. Llama a la API para obtener los datos más recientes.
-            val sellersFromApi = apiService.getSellers()
-            // 2. Borra los datos viejos de la base de datos local.
-            sellerDao.deleteAll()
-            // 3. Inserta los nuevos datos en la base de datos local.
-            sellerDao.insertAll(sellersFromApi)
+    suspend fun convertToSeller(user: User, entrepreneurshipName: String): Result<Unit> {
+        Log.d("SellerRepository", "Iniciando conversión a vendedor para el usuario: ${user.email}")
+
+        val newSellerData = Seller(
+            id = user.id, // ✅ CRÍTICO: Usamos el ID del usuario
+            name = user.name,
+            lastname = user.lastName,
+            email = user.email,
+            phone = user.phone,
+            address = user.address,
+            entrepreneurship = entrepreneurshipName
+        )
+
+        return try {
+            // VERIFICAR SI YA EXISTE EL VENDEDOR EN LA API
+            val existingSeller = try {
+                apiService.getSellers().find { it.id == user.id }
+            } catch (e: Exception) {
+                null
+            }
+
+            val createdSellerFromApi = if (existingSeller != null) {
+                // Si ya existe, actualizamos
+                Log.d("SellerRepository", "Vendedor ya existe en API, actualizando...")
+                apiService.patchSeller(
+                    user.id,
+                    SellerPatchDTO(
+                        name = newSellerData. name,
+                        lastname = newSellerData.lastname,
+                        phone = newSellerData. phone,
+                        address = newSellerData.address,
+                        entrepreneurship = newSellerData.entrepreneurship
+                    )
+                )
+                newSellerData // Usamos los datos locales
+            } else {
+                // Si no existe, lo creamos CON EL ID DEL USUARIO
+                createSellerWithSpecificId(newSellerData)
+            }
+
+            // Insertar/actualizar en Room
+            sellerDao.insertSeller(createdSellerFromApi)
+            Log.d("SellerRepository", "Vendedor insertado en Room localmente.")
+
+            // Actualizar rol del usuario
+            val userWithNewRole = user.copy(role = UserRole.SELLER)
+            userDao.updateUser(userWithNewRole)
+            Log.d("SellerRepository", "Rol del usuario ${user.id} actualizado a SELLER en Room.")
+
+            Result.success(Unit)
+
         } catch (e: Exception) {
-            // Aca se pueden manejar errores de red
-            // Si la llamada falla, la app seguirá mostrando los datos viejos de Room.
-            println("Error al refrescar vendedores: ${e.message}")
+            Log.e("SellerRepository", "Fallo en convertToSeller: ${e.message}", e)
+            Result.failure(e)
         }
     }
 
     /**
-     * Obtiene un vendedor a partir de su dirección de correo electrónico.
+     * Crea un vendedor en la API remota utilizando
+     * un ID específico.
      *
-     * La API devuelve una lista de vendedores que coinciden con el email proporcionado.
-     * Este método retorna el primer elemento de la lista si existe, o `null` en caso
-     * contrario.
+     * Este método se apoya en el comportamiento del backend
+     * para respetar el ID enviado en el cuerpo del POST.
      *
-     * En caso de producirse una excepción durante la llamada a la API,
-     * el error es capturado y se retorna `null`.
+     * @param seller Vendedor a crear.
+     * @return Vendedor creado por la API.
+     */
+    private suspend fun createSellerWithSpecificId(seller:  Seller): Seller {
+        // Llamar directamente al endpoint con el ID deseado
+        // json-server respetará el ID que le envíes en el POST
+        return apiService.createSeller(seller)
+    }
+
+    /**
+     * Sincroniza los vendedores desde la API remota hacia la base local.
      *
-     * @param email Dirección de correo electrónico del vendedor a buscar.
-     * @return El primer [Seller] encontrado con el email indicado, o `null` si no existe
-     * o si ocurre un error.
+     * Para cada vendedor obtenido:
+     * - Se inserta si no existe localmente
+     * - Se actualiza si ya existe
+     *
+     * Útil para sincronizaciones iniciales o refrescos completos.
+     */
+    suspend fun syncSellersWithApi() {
+        try {
+            val sellersFromApi = apiService.getSellers()
+
+            // Para cada vendedor de la API, insertar o actualizar en Room
+            sellersFromApi.forEach { apiSeller ->
+                // Verificar si ya existe en Room
+                val localSeller = sellerDao.getSellerByIdSuspend(apiSeller.id)
+                if (localSeller == null) {
+                    // Insertar nuevo
+                    sellerDao.insertSeller(apiSeller)
+                } else {
+                    // Actualizar existente
+                    sellerDao.updateSeller(apiSeller)
+                }
+            }
+
+            Log.d("SellerRepository", "Synced ${sellersFromApi.size} sellers from API")
+        } catch (e: Exception) {
+            Log.e("SellerRepository", "Error syncing sellers", e)
+        }
+    }
+
+    /**
+     * Obtiene un vendedor por su correo electrónico desde la API.
+     *
+     * Primero intenta una consulta directa por email.
+     * Si no hay resultados, realiza una búsqueda manual
+     * sobre la lista completa de vendedores.
+     *
+     * @param email Correo electrónico del vendedor.
+     * @return Vendedor encontrado o `null` si no existe.
      */
     suspend fun getSellerByEmail(email: String): Seller? {
         return try {
-            // Devuelve una lista
+            Log.d("SellerRepository", "Buscando seller por email: '$email'")
+
+            // Usar query por email
             val sellers = apiService.getSellersByEmail(email)
-            // Si la lista no está vacía, devuelve el primer vendedor. Si está vacía, devuelve null.
-            sellers.firstOrNull()
+
+            if (sellers.isNotEmpty()) {
+                val seller = sellers.first()
+                Log.d("SellerRepository", "✅ Seller encontrado por query email: ID=${seller.id}")
+                return seller
+            }
+
+            // Si query por email no funciona, buscar en toda la lista
+            Log.d("SellerRepository", "🔄 Query email vacía, buscando en lista completa...")
+            val allSellers = apiService.getSellers()
+            val foundSeller = allSellers.find { it.email.equals(email, ignoreCase = true) }
+
+            if (foundSeller != null) {
+                Log.d("SellerRepository", "✅ Seller encontrado en lista completa: ID=${foundSeller.id}")
+            } else {
+                Log.d("SellerRepository", "❌ Seller no encontrado para email: $email")
+            }
+
+            foundSeller
+
         } catch (e: Exception) {
-            println("Error fetching seller by email: ${e.message}")
+            Log.e("SellerRepository", "❌ Error buscando seller por email", e)
             null
         }
     }
 
     /**
-     * Crea un nuevo vendedor en el sistema asignándole un ID numérico autoincremental.
+     * Obtiene un vendedor por ID desde la base de datos local
+     * de forma reactiva.
      *
-     * Dado que el backend (json-server) no genera automáticamente IDs,
-     * este método:
-     * 1. Obtiene la lista completa de vendedores existentes.
-     * 2. Calcula el siguiente ID disponible (máximo actual + 1).
-     * 3. Crea una copia del objeto [Seller] con el ID asignado.
-     * 4. Envía el vendedor al servicio remoto para su persistencia.
-     *
-     * @param seller Objeto [Seller] a crear (sin ID o con ID no válido).
-     * @return El [Seller] creado, tal como lo devuelve la API.
+     * @param id Identificador del vendedor.
+     * @return [Flow] que emite el vendedor o `null`.
      */
-    suspend fun createSeller(seller: Seller): Seller {
-        // 1. Obtener la lista actual de todos los vendedores para calcular el siguiente ID.
-        val allSellers = apiService.getSellers()
+    fun getSellerById(id: Int): Flow<Seller?> {
+        return sellerDao.getSellerById(id)
+    }
 
-        // 2. Calcular el siguiente ID.
-        // Si la lista está vacía, el primer ID será 1.
-        // Si no, encuentra el ID máximo actual y le suma 1.
-        val nextId = (allSellers.maxOfOrNull { it.id } ?: 0) + 1
+    /**
+     * Actualiza un vendedor únicamente en la base de datos local.
+     *
+     * @param seller Vendedor con los datos actualizados.
+     */
+    suspend fun updateSeller(seller: Seller) {
+        sellerDao.updateSeller(seller)
+    }
 
-        // 3. Crea una copia del objeto vendedor pero con el nuevo ID calculado.
-        val sellerWithId = seller.copy(id = nextId)
+    /**
+     * Actualiza un vendedor en la API remota.
+     *
+     * El flujo de actualización es:
+     * 1. Verificación de existencia mediante GET
+     * 2. Intento de actualización con PATCH
+     * 3. Fallback a PUT si PATCH falla
+     * 4. Persistencia local si la operación es exitosa
+     *
+     * @param seller Vendedor a actualizar.
+     * @return [Result] indicando el resultado de la operación.
+     */
+    suspend fun updateSellerApi(seller: Seller): Result<Unit> {
+        return try {
+            Log.d("SellerRepository", "=== INICIO UPDATE SELLER API ===")
+            Log.d("SellerRepository", "Intentando actualizar seller ID: ${seller.id}")
 
-        // 4. Envía el nuevo vendedor con el ID ya asignado a json-server.
-        // json-server respetará el ID que le estás enviando.
-        return apiService.createSeller(sellerWithId)
+            // Verificar que GET por ID funciona
+            try {
+                Log.d("SellerRepository", "🔍 Probando GET /sellers/${seller.id}")
+                val sellerFromApi = apiService.getSellerById(seller.id)
+                Log.d("SellerRepository", "✅ GET exitoso. Seller encontrado: ${sellerFromApi.name}")
+
+                // El seller existe, podemos proceder con PATCH/PUT
+            } catch (e: Exception) {
+                Log.e("SellerRepository", "❌ GET falló. El seller con ID=${seller.id} no existe en la API")
+                Log.e("SellerRepository", "Error: ${e.message}")
+
+                // Si GET falla, el seller no existe en la API
+                return Result.failure(Exception("Seller no encontrado en la API. ID: ${seller.id}"))
+            }
+
+            // Intentar PATCH
+            Log.d("SellerRepository", "📤 Intentando PATCH...")
+            val sellerDto = SellerPatchDTO(
+                name = seller.name,
+                lastname = seller.lastname,
+                phone = seller.phone,
+                address = seller.address,
+                entrepreneurship = seller.entrepreneurship
+            )
+
+            val response = apiService.patchSeller(seller.id, sellerDto)
+
+            Log.d("SellerRepository", "📊 Respuesta PATCH - Código: ${response.code()}")
+
+            if (response.isSuccessful) {
+                val updatedSeller = response.body()
+                Log.d("SellerRepository", "✅ PATCH exitoso!")
+
+                if (updatedSeller != null) {
+                    // Actualizar en Room
+                    sellerDao.updateSeller(updatedSeller)
+                    Log.d("SellerRepository", "✅ Seller actualizado en Room")
+                }
+
+                return Result.success(Unit)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e("SellerRepository", "❌ PATCH falló - Error: ${response.code()} - $errorBody")
+
+                // Intentar PUT como alternativa
+                Log.d("SellerRepository", "🔄 Intentando PUT como alternativa...")
+                return tryPutUpdate(seller)
+            }
+
+        } catch (e: Exception) {
+            Log.e("SellerRepository", "❌ Error general en updateSellerApi", e)
+            Result.failure(Exception("Error actualizando seller: ${e.message}"))
+        }
+    }
+
+    /**
+     * Intenta actualizar un vendedor utilizando PUT
+     * como alternativa al PATCH.
+     *
+     * @param seller Vendedor a actualizar.
+     * @return [Result] indicando éxito o fallo.
+     */
+    private suspend fun tryPutUpdate(seller: Seller): Result<Unit> {
+        return try {
+            val response = apiService.putSeller(seller.id, seller)
+
+            if (response.isSuccessful) {
+                val updatedSeller = response.body()
+                Log.d("SellerRepository", "✅ PUT exitoso!")
+
+                if (updatedSeller != null) {
+                    sellerDao.updateSeller(updatedSeller)
+                }
+
+                Result.success(Unit)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e("SellerRepository", "❌ PUT también falló - Error: ${response.code()} - $errorBody")
+                Result.failure(Exception("Error ${response.code()}: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Log.e("SellerRepository", "❌ Error en PUT", e)
+            Result.failure(e)
+        }
     }
 }

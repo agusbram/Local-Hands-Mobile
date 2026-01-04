@@ -9,6 +9,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.undef.localhandsbrambillafunes.data.remote.ApiService
+import com.undef.localhandsbrambillafunes.service.EmailService
 
 /**
  * Repositorio para operaciones de autenticación
@@ -27,7 +29,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt
 @Singleton // Garantiza que solo exista una instancia en toda la app
 class AuthRepository @Inject constructor(
     private val userDao: UserDao, // ← Inyectado por Dagger/Hilt
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
 ) {
 
     // SharedPreferences para gestión de sesión
@@ -76,16 +78,6 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    /**
-     * Obtiene un usuario por su ID.
-     *
-     * @param id ID del usuario.
-     * @return Instancia de [User], o `null` si no se encuentra.
-     */
-    suspend fun getUserById(id: Int): User? {
-        return userDao.getUserById(id)
     }
 
     /**
@@ -148,21 +140,12 @@ class AuthRepository @Inject constructor(
      * Obtiene el correo electrónico del usuario actualmente autenticado
      * @return Email del usuario o null si no hay sesión activa
      */
-    suspend fun getCurrentUserEmail(): String? {
+    fun getCurrentUserEmail(): String? {
         return if(isUserLoggedIn()) {
             sharedPreferences.getString(KEY_USER_EMAIL, null)
         } else {
             null
         }
-    }
-
-    /**
-     * Obtiene el usuario actualmente autenticado
-     * @return Usuario actual o null si no hay sesión activa
-     */
-    suspend fun getCurrentUser(): User? {
-        val userId = getCurrentUserId()
-        return userId?.let { userDao.getUserById(it) }
     }
 
     /**
@@ -195,21 +178,6 @@ class AuthRepository @Inject constructor(
             .putString(KEY_USER_EMAIL, email)
             .putBoolean(KEY_IS_LOGGED_IN, true)
             .apply()
-    }
-
-    /**
-     * Obtiene usuario por email sin verificar contraseña
-     *
-     * @param email Email a buscar
-     * @return Result<User?> con usuario o null si no existe
-     */
-    suspend fun getUserByemail(email: String): Result<User?> {
-        return try {
-            val user = userDao.getUserByEmail(email)
-            Result.success(user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
     }
 
     /**

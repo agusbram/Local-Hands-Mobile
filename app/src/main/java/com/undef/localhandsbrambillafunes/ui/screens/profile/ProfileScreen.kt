@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,6 +48,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,9 +65,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.UiEvent
 import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,16 +78,13 @@ fun ProfileScreen(navController: NavController,
                   settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
                   profileViewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>()
 ) {
-    // Observamos el estado de los campos de edición en tiempo real
+    // Se observa el estado de los campos de edición en tiempo real
     val editState by profileViewModel.editState.collectAsState()
 
-    /**
-     * Se obtiene el perfil del usuario logueado en la sesión actual
-     * en tiempo real gracias a DataStore
-     * */
-    val userProfile by profileViewModel.userProfile.collectAsState()
+    // Se observa el role del usuario en tiempo real
+    val userRole by profileViewModel.userRole.collectAsState()
 
-    //Necesario para crear los Toast
+    // Para crear los Toast
     val context = LocalContext.current
 
     // Leemos el valor de la ubicacion en tiempo real
@@ -94,6 +96,7 @@ fun ProfileScreen(navController: NavController,
     val isEmailValid = isValidEmail(editState.email)
     val isPhoneValid = isValidPhone(editState.phone)
     val isAddressValid = editState.address.length >= 5
+    val isEntrepreneurshipValid = editState.entrepreneurship.length >= 4
 
     //Para validar que el formulario esté completo para guardar los cambios
     val isFormValid = isNameValid && isLastNameValid && isEmailValid && isPhoneValid && isAddressValid
@@ -116,6 +119,34 @@ fun ProfileScreen(navController: NavController,
     ) { uri: Uri? ->
         imageUri = uri // Guarda la URI seleccionada
     }
+
+
+
+
+
+    /**
+     * --- ESCUCHA DE EVENTOS DE LA UI ---
+     * LaunchedEffect se suscribe al flujo de eventos del ViewModel (ProfileViewModel para en este caso).
+     * 'key1 = true' significa que se ejecutará una sola vez y se mantendrá escuchando.
+     */
+    LaunchedEffect(key1 = true) {
+        // Llama a la función para cargar/refrescar los datos del perfil.
+        profileViewModel.refreshUserProfile()
+
+        /**
+         * Lanza una nueva corrutina para escuchar eventos de la UI (como Toasts)
+         * de forma continua, sin bloquear la corrutina principal.
+         */
+        launch {
+            profileViewModel.uiEventFlow.collect { event ->
+                when (event) {
+                    is UiEvent.ShowToast -> {
+                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+}
 
     Scaffold(
         // Barra Superior con título y acciones
@@ -254,39 +285,60 @@ fun ProfileScreen(navController: NavController,
                     }
                 } else {
                     // Cuando los datos están cargados, mostramos los campos.
+
+                    // Campo editable del atributo nombre
                     EditableProfileItem(
                         label = "Nombre",
                         value = editState.name,
                         isValid = isNameValid,
-                        onValueChange = profileViewModel::onNameChange
+                        onValueChange = { newValue ->
+                            val newState = editState.copy(name = newValue)
+                            profileViewModel.onFieldChange(newState)
+                        }
                     )
 
+                    // Campo editable del atributo apellido
                     EditableProfileItem(
                         label = "Apellido",
                         value = editState.lastName,
                         isValid = isLastNameValid,
-                        onValueChange = profileViewModel::onLastnameChange
+                        onValueChange = { newValue ->
+                            val newState = editState.copy(lastName = newValue)
+                            profileViewModel.onFieldChange(newState)
+                        },
                     )
 
+                    // Campo editable del atributo email
                     EditableProfileItem(
                         label = "Correo Electrónico",
                         value = editState.email,
                         isValid = isEmailValid,
-                        onValueChange = profileViewModel::onEmailChange
+                        onValueChange = { newValue ->
+                            val newState = editState.copy(email = newValue)
+                            profileViewModel.onFieldChange(newState)
+                        }
                     )
 
+                    // Campo editable del atributo domicilio
                     EditableProfileItem(
                         label = "Domicilio",
                         value = editState.address,
                         isValid = isAddressValid,
-                        onValueChange = profileViewModel::onAddressChange
+                        onValueChange = { newValue ->
+                            val newState = editState.copy(address = newValue)
+                            profileViewModel.onFieldChange(newState)
+                        }
                     )
 
+                    // Campo editable del atributo teléfono
                     EditableProfileItem(
                         label = "Teléfono",
                         value = editState.phone,
                         isValid = isPhoneValid,
-                        onValueChange = profileViewModel::onPhoneChange
+                        onValueChange = { newValue ->
+                            val newState = editState.copy(phone = newValue)
+                            profileViewModel.onFieldChange(newState)
+                        }
                     )
 
                     /**
@@ -317,34 +369,45 @@ fun ProfileScreen(navController: NavController,
                             )
                         }
                     }
+
+                    // Campo editable del atributo emprendimiento (se muestra únicamente si es vendedor)
+                    if (userRole == UserRole.SELLER) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        EditableProfileItem(
+                            label = "Emprendimiento",
+                            value = editState.entrepreneurship,
+                            isValid = isEntrepreneurshipValid,
+                            onValueChange = { newValue ->
+                                val newState = editState.copy(entrepreneurship = newValue)
+                                profileViewModel.onFieldChange(newState)
+                            }
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(24.dp))
 
-                //Texto clickeable para cambiar la contraseña
+                // Texto clickeable para cambiar la contraseña
                 Text("Cambiar contraseña", color = Color.Blue, modifier = Modifier.clickable {
                     showPasswordDialog = true
                 })
-                //Texto clickeable para ver mis productos
+
+                // Texto clickeable para ver mis productos
                 Text("Mis productos", color = Color.Blue, modifier = Modifier.clickable {
                     Toast.makeText(context, "Mis productos (futuro)", Toast.LENGTH_SHORT).show()
                 })
-                //Texto clickeable para eliminar la cuenta
+                // Texto clickeable para eliminar la cuenta
                 Text("Eliminar cuenta", color = Color.Red, modifier = Modifier.clickable {
                     Toast.makeText(context, "Eliminar cuenta (futuro)", Toast.LENGTH_SHORT).show()
                 })
 
                 Spacer(Modifier.height(32.dp))
 
+                // Botón para guardar cambios
                 Button(
                     onClick = {
                         // Se guardan los datos del perfil del usuario en la tabla User de la BD de Room
-                        profileViewModel.saveProfileChanges()
-                        Toast.makeText(
-                            context,
-                            "Cambios guardados correctamente",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        profileViewModel.saveChanges()
                     },
                     enabled = isFormValid, //Para poder clickear el boton debe estar previamente validado el formulario
                     modifier = Modifier
@@ -362,7 +425,7 @@ fun ProfileScreen(navController: NavController,
                     Text("Cerrar sesión")
                 }
 
-                // 🔐 Dialog cambiar contraseña
+                // Dialog cambiar contraseña
                 if (showPasswordDialog) {
                     ChangePasswordDialog(
                         newPassword = newPassword,
@@ -386,7 +449,7 @@ fun ProfileScreen(navController: NavController,
                     )
                 }
 
-                // 🚪 Dialog cerrar sesión
+                // Dialog cerrar sesión
                 if (showLogoutDialog) {
                     LogoutConfirmationDialog(
                         //En el caso que se seleccione que si se desea cerrar sesión, navega hacia la pantalla de login, evitando que se pueda volver hacia esta pantalla de perfil
@@ -397,7 +460,7 @@ fun ProfileScreen(navController: NavController,
                             Toast.makeText(context, "Sesión cerrada", Toast.LENGTH_SHORT).show()
                             showLogoutDialog = false
                             navController.navigate(AppScreens.LoginScreen.route) {  //Redirige a la pantalla de login
-                                //Quita todas las pantallas hasta la especificada (la de perfil)
+                                // Quita todas las pantallas hasta la especificada (la de perfil)
                                 popUpTo(AppScreens.ProfileScreen.route) {
                                     inclusive = true
                                 }  //inclusive = true --> Remueve la pantalla actual ProfileScreen
@@ -405,7 +468,7 @@ fun ProfileScreen(navController: NavController,
                                     true //Evita que se creen múltiples instancias si ya está en el top del stack
                             }
                         },
-                        //En el caso que se descarte la opción, es decir, se seleccione que no se desea cerrar sesión, quita el dialog de cerrar sesión de la pantalla
+                        // En el caso que se descarte la opción, es decir, se seleccione que no se desea cerrar sesión, quita el dialog de cerrar sesión de la pantalla
                         onDismiss = { showLogoutDialog = false }
                     )
                 }
@@ -414,18 +477,48 @@ fun ProfileScreen(navController: NavController,
     }
 }
 
-//Valida que la contraseña tenga al menos 8 caracteres, 1 mayúscula y 1 número
+/**
+ * Valida que una contraseña cumpla con los requisitos mínimos de seguridad.
+ *
+ * Reglas aplicadas:
+ * - Al menos 8 caracteres
+ * - Al menos una letra mayúscula
+ * - Al menos un dígito numérico
+ *
+ * @param password Contraseña a validar.
+ * @return `true` si la contraseña cumple con el formato requerido,
+ *         `false` en caso contrario.
+ */
 fun isValidPassword(password: String): Boolean {
     val regex = Regex("^(?=.*[A-Z])(?=.*\\d).{8,}$")
     return regex.matches(password)
 }
 
-//Valida que el correo electrónico tenga el formato de un email
+/**
+ * Valida que un correo electrónico tenga un formato válido.
+ *
+ * Utiliza el patrón estándar provisto por la plataforma Android
+ * para verificar direcciones de correo electrónico.
+ *
+ * @param email Dirección de correo electrónico a validar.
+ * @return `true` si el formato es válido, `false` en caso contrario.
+ */
 fun isValidEmail(email: String): Boolean {
     return Patterns.EMAIL_ADDRESS.matcher(email).matches()
 }
 
-//Valida que el teléfono tenga el formato correcto
+/**
+ * Valida que un número de teléfono tenga un formato aceptable.
+ *
+ * El proceso de validación:
+ * - Elimina todos los caracteres que no sean numéricos
+ * - Verifica que la longitud resultante sea válida para Argentina
+ *   (entre 10 y 15 dígitos, incluyendo prefijos)
+ *
+ * @param phone Número de teléfono a validar.
+ * @return `true` si el número cumple con el formato esperado,
+ *         `false` en caso contrario.
+ */
 fun isValidPhone(phone: String): Boolean {
     // Elimina todo lo que no sea número
     val digitsOnly = phone.filter { it.isDigit() }
@@ -435,7 +528,18 @@ fun isValidPhone(phone: String): Boolean {
 }
 
 
-//Cada campo de texto a editar del perfil
+/**
+ * Composable reutilizable para la edición de un campo del perfil de usuario.
+ *
+ * Muestra un campo de texto con validación visual inmediata,
+ * cambiando los colores del borde y la etiqueta según el estado
+ * de validez del contenido.
+ *
+ * @param label Etiqueta descriptiva del campo.
+ * @param value Valor actual del campo.
+ * @param isValid Indica si el valor ingresado es válido.
+ * @param onValueChange Callback ejecutado cuando el valor cambia.
+ */
 @Composable
 fun EditableProfileItem(
     label: String,
@@ -462,7 +566,22 @@ fun EditableProfileItem(
     }
 }
 
-//Funcion que se encarga de la validacion de la contraseña y la visibilidad de la misma
+/**
+ * Diálogo para el cambio de contraseña del usuario.
+ *
+ * Incluye:
+ * - Validación de fortaleza de la nueva contraseña
+ * - Verificación de coincidencia entre ambas contraseñas
+ * - Control de visibilidad del texto de contraseña
+ * - Habilitación condicional del botón de confirmación
+ *
+ * @param newPassword Nueva contraseña ingresada.
+ * @param repeatPassword Repetición de la nueva contraseña.
+ * @param onPasswordChange Callback al modificar la nueva contraseña.
+ * @param onRepeatChange Callback al modificar la contraseña repetida.
+ * @param onConfirm Acción a ejecutar al confirmar el cambio.
+ * @param onDismiss Acción a ejecutar al cerrar el diálogo.
+ */
 @Composable
 fun ChangePasswordDialog(
     newPassword: String,
@@ -472,18 +591,18 @@ fun ChangePasswordDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    //Para verificar si la contraseña nueva es válida
+    // Para verificar si la contraseña nueva es válida
     val isNewPasswordValid = isValidPassword(newPassword)
-    //Para verificar si la contraseña repetida es identica al campo de la nueva contraseña
+    // Para verificar si la contraseña repetida es identica al campo de la nueva contraseña
     val doPasswordsMatch = newPassword == repeatPassword && repeatPassword.isNotBlank()
 
-    //Para cambiar la visibilidad de la contraseña
+    // Para cambiar la visibilidad de la contraseña
     var newPasswordVisible by remember { mutableStateOf(false) }
-    //Para cambiar la visibilidad de la contraseña repetida
+    // Para cambiar la visibilidad de la contraseña repetida
     var repeatPasswordVisible by remember { mutableStateOf(false) }
 
 
-    //El componente Dialog muestra mensajes emergentes o solicita entradas del usuario en una capa sobre el contenido principal de la app
+    // El componente Dialog muestra mensajes emergentes o solicita entradas del usuario en una capa sobre el contenido principal de la app
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Cambiar contraseña") },
@@ -495,14 +614,14 @@ fun ChangePasswordDialog(
                     label = { Text("Nueva contraseña") },
                     singleLine = true,
                     visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), //Establece que la contraseña no se pueda ver a simple vista
-                    //Define el ojo que muestra u oculta la contraseña
+                    // Define el ojo que muestra u oculta la contraseña
                     trailingIcon = {
                         val icon = if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
                         IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
                             Icon(imageVector = icon, contentDescription = "Ver contraseña")
                         }
                     },
-                    //Establecemos el color verde y rojo para el campo de nueva contraseña
+                    // Establecemos el color verde y rojo para el campo de nueva contraseña
                     colors = TextFieldDefaults.colors(
                         focusedLabelColor = if (isNewPasswordValid) Color.Green else Color.Red,
                         focusedIndicatorColor = if (isNewPasswordValid) Color.Green else Color.Red,
@@ -516,14 +635,14 @@ fun ChangePasswordDialog(
                     label = { Text("Repetir contraseña") },
                     singleLine = true,
                     visualTransformation = if (repeatPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), //Establece que la contraseña no se pueda ver a simple vista
-                    //Define el ojo que muestra u oculta la contraseña
+                    // Define el ojo que muestra u oculta la contraseña
                     trailingIcon = {
                         val icon = if (repeatPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
                         IconButton(onClick = { repeatPasswordVisible = !repeatPasswordVisible }) {
                             Icon(imageVector = icon, contentDescription = "Ver contraseña")
                         }
                     },
-                    //Establecemos el color verde y rojo para el campo de contraseña repetida
+                    // Establecemos el color verde y rojo para el campo de contraseña repetida
                     colors = TextFieldDefaults.colors(
                         focusedLabelColor = if (doPasswordsMatch) Color.Green else Color.Red,
                         focusedIndicatorColor = if (doPasswordsMatch) Color.Green else Color.Red,
@@ -548,13 +667,21 @@ fun ChangePasswordDialog(
     )
 }
 
-//Abre la ventana de confirmacion para cerrar la sesion
+/**
+ * Diálogo de confirmación para el cierre de sesión del usuario.
+ *
+ * Solicita confirmación explícita antes de finalizar la sesión
+ * activa, evitando cierres accidentales.
+ *
+ * @param onConfirm Acción a ejecutar al confirmar el cierre de sesión.
+ * @param onDismiss Acción a ejecutar al cancelar la operación.
+ */
 @Composable
 fun LogoutConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Cerrar sesión") },
         text = { Text("¿Estás seguro de que deseas cerrar sesión?") },

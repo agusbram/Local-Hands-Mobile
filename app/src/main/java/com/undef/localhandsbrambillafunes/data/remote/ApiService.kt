@@ -1,10 +1,17 @@
 package com.undef.localhandsbrambillafunes.data.remote
 
+import com.undef.localhandsbrambillafunes.data.dto.SellerPatchDTO
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.entity.Seller
+import com.undef.localhandsbrambillafunes.data.entity.User
+import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -78,6 +85,22 @@ interface ApiService {
     suspend fun getSellers(): List<Seller>
 
     /**
+     * Obtiene un vendedor específico a partir de su identificador.
+     *
+     * Este método realiza una operación HTTP GET sobre el recurso `sellers/{id}`,
+     * retornando la información completa del vendedor solicitado.
+     *
+     * Es una operación suspendida y debe ejecutarse fuera del hilo principal.
+     *
+     * @param id Identificador único del vendedor.
+     * @return Objeto [Seller] correspondiente al ID solicitado.
+     *
+     * @throws retrofit2.HttpException si el recurso no existe o ocurre un error HTTP.
+     */
+    @GET("sellers/{id}")
+    suspend fun getSellerById(@Path("id") id: Int): Seller
+
+    /**
      * Obtiene un vendedor por su dirección de correo electrónico.
      *
      * Esta función realiza una solicitud HTTP GET al endpoint `/sellers`,
@@ -90,4 +113,31 @@ interface ApiService {
      */
     @GET("sellers")
     suspend fun getSellersByEmail(@Query("email") email: String): List<Seller>
+
+    /**
+     * Actualiza completamente la información de un vendedor existente.
+     *
+     * Este método realiza una operación HTTP PUT sobre el recurso `sellers/{id}`,
+     * reemplazando el estado actual del vendedor por los datos enviados en el cuerpo
+     * de la solicitud.
+     *
+     * Debe utilizarse cuando se desea actualizar todos los campos del vendedor.
+     *
+     * @param id Identificador único del vendedor a actualizar.
+     * @param seller Objeto [Seller] con la información completa y actualizada.
+     * @return Un [Response] que contiene el vendedor actualizado en caso de éxito,
+     *         junto con el código de estado HTTP correspondiente.
+     */
+    @PUT("sellers/{id}")
+    suspend fun putSeller(@Path("id") id: Int, @Body seller: Seller): Response<Seller>
+
+    /**
+     * Actualiza parcialmente los datos de un vendedor existente en la API.
+     *
+     * @param id El ID del vendedor a actualizar. Se insertará en la URL.
+     * @param seller El objeto Seller con los campos a modificar.
+     * @return Una respuesta de Retrofit con el vendedor actualizado.
+     */
+    @PATCH("sellers/{id}")
+    suspend fun patchSeller(@Path("id") id: Int, @Body sellerPatchDTO: SellerPatchDTO): Response<Seller>
 }

@@ -91,22 +91,11 @@ fun SellScreen(
      */
     val currentUserIdState = remember { mutableStateOf<Int?>(null) }
     val currentSellerEmailState = remember { mutableStateOf<String?>(null) }
-    val currentSellerNameState = remember { mutableStateOf<String?>(null) }
-    val currentSellerLastNameState = remember { mutableStateOf<String?>(null) }
-    val currentSellerPhoneState = remember { mutableStateOf<String?>(null) }
-    val currentSellerEntrepreneurshipState = remember { mutableStateOf<String?>(null) }
-    val currentSellerAddressState = remember { mutableStateOf<String?>(null) }
-
 
     /*Llamamos a una funcion suspend con corrutinas para obtener los datos del usuario actual*/
     LaunchedEffect(Unit) {
         currentUserIdState.value = sessionViewModel.getCurrentUserId()
         currentSellerEmailState.value = sessionViewModel.getCurrentSellerEmail()
-        currentSellerNameState.value = sessionViewModel.getCurrentSellerName()
-        currentSellerPhoneState.value = sessionViewModel.getCurrentSellerPhone()
-        currentSellerLastNameState.value = sessionViewModel.getCurrentSellerLastName()
-        currentSellerEntrepreneurshipState.value = sessionViewModel.getCurrentSellerEntrepreneurship()
-        currentSellerAddressState.value = sessionViewModel.getCurrentSellerAddress()
     }
 
     // Se obtienen los productos del vendedor de la sesión actual
@@ -124,16 +113,8 @@ fun SellScreen(
     // Este efecto se dispara cuando el usuario acepta convertirse en vendedor.
     // Se lanza solo cuando tenemos los datos del usuario.
     LaunchedEffect(currentSellerEmailState.value) {
-        // Asegúrate de que no se llame con valores nulos y solo una vez
         if (currentSellerEmailState.value != null && status == SellerCreationStatus.IDLE) {
-            sellViewModel.becomeSeller(
-                currentSellerEmailState.value!!,
-                currentSellerNameState.value ?: "Sin nombre",
-                currentSellerPhoneState.value ?: "Sin teléfono",
-                currentSellerAddressState.value ?: "Sin dirección",
-                currentSellerEntrepreneurshipState.value ?: "Sin emprendimiento",
-                currentSellerLastNameState.value ?: "Sin apellido"
-            )
+            sellViewModel.checkCurrentUserStatus()
         }
     }
 
@@ -150,7 +131,7 @@ fun SellScreen(
             }
         }
         SellerCreationStatus.SUCCESS, SellerCreationStatus.ALREADY_EXISTS -> {
-            // Si tuvo éxito o si ya existía, muestra el dashboard de vendedor (toda tu UI)
+            // Si tuvo éxito o si ya existía, muestra el dashboard de vendedor
             SellContent(
                 navController = navController,
                 productsOwnerState = productsOwnerState,
@@ -161,14 +142,7 @@ fun SellScreen(
             ErrorView(onRetry = {
                 // Reintenta la operación con los datos del usuario
                 if (currentSellerEmailState.value != null) {
-                    sellViewModel.becomeSeller(
-                        currentSellerEmailState.value!!,
-                        currentSellerNameState.value ?: "Sin nombre",
-                        currentSellerPhoneState.value ?: "Sin teléfono",
-                        currentSellerAddressState.value ?: "Sin dirección",
-                        currentSellerEntrepreneurshipState.value ?: "Sin emprendimiento",
-                        currentSellerLastNameState.value ?: "Sin apellido"
-                    )
+                    sellViewModel.checkCurrentUserStatus()
                 }
             })
         }

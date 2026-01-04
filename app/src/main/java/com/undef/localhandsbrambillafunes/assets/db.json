@@ -1,13 +1,22 @@
 {
   "sellers": [
     {
-      "id": 1,
-      "address": "Av Fuerza Aerea Argentina",
+      "id": "1",
+      "address": "asdsadsa123123",
+      "email": "truktekalert@gmail.com",
+      "entrepreneurship": "uiuiuiu",
+      "lastname": "TECKcve",
+      "name": "TRUCKvhe",
+      "phone": "123456789021312"
+    },
+    {
+      "id": "2",
+      "address": "xczxczczx",
       "email": "agustinbram@gmail.com",
-      "entrepreneurship": "Alablublu",
-      "lastname": "Brambilla",
-      "name": "Agustin",
-      "phone": "3541207081"
+      "entrepreneurship": "AGUSYCELEPORSIEMPRE",
+      "lastname": "BRAMAYLLON",
+      "name": "AGUStinCELEHERMOSA",
+      "phone": "1234567890"
     }
   ],
   "products": []

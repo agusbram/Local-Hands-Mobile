@@ -28,16 +28,6 @@ interface UserDao {
     suspend fun getUserByEmail(email: String): User?
 
     /**
-     * Autentica usuario por email y contraseña (OBSOLETO - usar verificación con hash)
-     *
-     * @param email Email del usuario
-     * @param password Contraseña en texto plano
-     * @return Usuario autenticado o null
-     */
-    @Query("SELECT * FROM UserEntity WHERE email = :email AND password = :password")
-    suspend fun authenticateUser(email: String, password: String): User?
-
-    /**
      * Inserta nuevo usuario
      *
      * @param user Usuario a insertar
@@ -116,7 +106,7 @@ interface UserDao {
      * @param id ID del usuario.
      * @return Instancia Flow de [User], o `null` si no se encuentra.
      */
-    @Query("SELECT * FROM users WHERE id = :id")
+    @Query("SELECT * FROM UserEntity WHERE id = :id")
     fun getUserByIdFlow(id: Int): Flow<User?>
 
     /**

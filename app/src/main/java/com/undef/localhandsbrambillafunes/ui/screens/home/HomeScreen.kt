@@ -1,10 +1,12 @@
 package com.undef.localhandsbrambillafunes.ui.screens.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,27 +53,37 @@ import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.undef.localhandsbrambillafunes.data.entity.Seller
-import com.undef.localhandsbrambillafunes.ui.viewmodel.users.UserViewModel
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellerCreationStatus
 
 /**
- * Pantalla principal de la aplicación que muestra una interfaz completa con barra superior,
- * contenido principal y barra de navegación inferior.
+ * Pantalla principal de la aplicación.
  *
- * Esta pantalla implementa el patrón Material Design 3 usando Scaffold como contenedor principal.
+ * Esta pantalla actúa como punto de entrada principal para el usuario y
+ * presenta una interfaz completa compuesta por:
+ * - Barra superior (TopAppBar)
+ * - Contenido principal con listado de productos
+ * - Barra de navegación inferior (NavigationBar)
+ *
+ * Implementa el patrón Material Design 3 utilizando [Scaffold] como
+ * contenedor estructural.
+ *
+ * @param navController Controlador de navegación para manejar el flujo entre pantallas.
+ * @param productViewModel ViewModel encargado de proveer el listado de productos.
+ * @param sellViewModel ViewModel encargado de gestionar la lógica de conversión a vendedor.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController,
                productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
-               userViewModel: UserViewModel = hiltViewModel<UserViewModel>()
+               sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
 ) {
+    // Estado reactivo que contiene la lista de productos
     val products by productViewModel.products.collectAsState()
+
+    // Controla la visualización del flujo de conversión a vendedor
     var showSellDialog by remember { mutableStateOf(false) }
 
     /**
@@ -78,7 +91,14 @@ fun HomeScreen(navController: NavController,
      * con áreas para barra superior, contenido principal y barra inferior.
      */
     Scaffold(
-        // Barra Superior con título y acciones
+        /**
+         * Barra superior de la aplicación.
+         *
+         * Incluye:
+         * - Logo de la aplicación
+         * - Título
+         * - Accesos directos a búsqueda, perfil y configuración
+         */
         topBar = {
             /**
              * TopAppBar proporciona la barra superior con título y acciones.
@@ -202,6 +222,11 @@ fun HomeScreen(navController: NavController,
             }
         }
     ) { paddingValues ->
+        /**
+         * Contenido principal de la pantalla.
+         *
+         * Muestra un listado vertical de productos destacados.
+         */
         LazyColumn(
             state = rememberLazyListState(),
             modifier = Modifier
@@ -226,51 +251,81 @@ fun HomeScreen(navController: NavController,
         }
     }
 
+    /**
+     * Flujo de navegación hacia la pantalla de venta.
+     */
     if (showSellDialog) {
         HandleNavigationToSellScreen(
             navController = navController,
-            userViewModel = userViewModel,
+            sellViewModel = sellViewModel,
             onDismiss = { showSellDialog = false }
         )
     }
 
-
 }
 
-
+/**
+ * Composable responsable de gestionar el flujo completo
+ * de conversión de un usuario a vendedor.
+ *
+ * Este flujo incluye:
+ * - Verificación del estado actual del usuario
+ * - Confirmación de intención
+ * - Ingreso del nombre del emprendimiento
+ * - Navegación automática a la pantalla de ventas
+ *
+ * @param navController Controlador de navegación.
+ * @param sellViewModel ViewModel que maneja el estado de creación del vendedor.
+ * @param onDismiss Callback para cerrar el flujo.
+ */
 @Composable
 fun HandleNavigationToSellScreen(
     navController: NavController,
-    userViewModel: UserViewModel = hiltViewModel(),
+    sellViewModel: SellViewModel,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val status by sellViewModel.status.collectAsState()
+    val entrepreneurshipName by sellViewModel.entrepreneurshipName.collectAsState()
 
+
+    // Estados locales para el control de diálogos
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var showEntrepreneurDialog by remember { mutableStateOf(false) }
-    var entrepreneurshipName by remember { mutableStateOf("") }
 
-    // 🔹 Lógica para consultar si el usuario es vendedor al entrar al Composable
-    LaunchedEffect(Unit) {
-        val user = userViewModel.getUserById()
-        userViewModel.checkIfUserIsSeller(user.email) { isVendor ->
-            if (isVendor) {
-                // Ya es vendedor → navegamos directamente
+    /**
+     * Observa los cambios de estado del proceso de creación
+     * de vendedor y reacciona en consecuencia.
+     */
+    LaunchedEffect(status) {
+        when (status) {
+            SellerCreationStatus.SUCCESS, SellerCreationStatus.ALREADY_EXISTS -> {
                 navController.navigate(AppScreens.SellScreen.route)
                 onDismiss()
-            } else {
-                // No es vendedor → mostrar diálogos
+            }
+            SellerCreationStatus.IDLE -> {
+                // El ViewModel ha confirmado que el usuario no es vendedor. Mostramos el diálogo.
                 showConfirmationDialog = true
             }
+            SellerCreationStatus.ERROR -> {
+                onDismiss()
+            }
+            else -> {}
         }
     }
 
-    // 🔹 Paso 1: Confirmación
+    /**
+     * Verifica el estado del usuario al iniciar el flujo.
+     */
+    LaunchedEffect(Unit) {
+        sellViewModel.checkCurrentUserStatus()
+    }
+
+    /**
+     * Diálogo de confirmación para convertirse en emprendedor.
+     */
     if (showConfirmationDialog) {
         AlertDialog(
             onDismissRequest = {
-                showConfirmationDialog = false
                 onDismiss()
             },
             title = { Text("Convertirse en emprendedor") },
@@ -285,7 +340,6 @@ fun HandleNavigationToSellScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    showConfirmationDialog = false
                     onDismiss()
                 }) {
                     Text("No")
@@ -294,11 +348,12 @@ fun HandleNavigationToSellScreen(
         )
     }
 
-    // 🔹 Paso 2: Ingreso de nombre del emprendimiento
+    /**
+     * Diálogo para ingresar el nombre del emprendimiento.
+     */
     if (showEntrepreneurDialog) {
         AlertDialog(
             onDismissRequest = {
-                showEntrepreneurDialog = false
                 onDismiss()
             },
             title = { Text("Nombre del emprendimiento") },
@@ -308,7 +363,7 @@ fun HandleNavigationToSellScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = entrepreneurshipName,
-                        onValueChange = { entrepreneurshipName = it },
+                        onValueChange = { sellViewModel.onEntrepreneurshipNameChange(it) },
                         placeholder = { Text("Ej: Dulzuras del Valle") },
                         singleLine = true
                     )
@@ -316,35 +371,36 @@ fun HandleNavigationToSellScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    coroutineScope.launch {
-                        val user = userViewModel.getUserById()
-                        val seller = Seller(
-                            id = user.id,
-                            name = user.name,
-                            lastname = user.lastName,
-                            email = user.email,
-                            phone = user.phone,
-                            address = user.address,
-                            entrepreneurship = entrepreneurshipName
-                        )
-                        /*Crea el vendedor a través de la API en el backend
-                        y navega a la pantalla de venta de productos*/
-                        userViewModel.createSeller(seller)
-                        navController.navigate(AppScreens.SellScreen.route)
-                        onDismiss()
-                    }
-                }) {
+                    sellViewModel.convertUserToSeller()
+                },
+                    enabled = entrepreneurshipName.isNotBlank()
+                ) {
                     Text("Aceptar")
                 }
             },
             dismissButton = {
                 TextButton(onClick = {
-                    showEntrepreneurDialog = false
                     onDismiss()
                 }) {
                     Text("Cancelar")
                 }
             }
+        )
+    }
+
+    /**
+     * Diálogo de carga mostrado durante el procesamiento.
+     */
+    if (status == SellerCreationStatus.LOADING) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Procesando...") },
+            text = {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                    CircularProgressIndicator()
+                }
+            },
+            confirmButton = {}
         )
     }
 }

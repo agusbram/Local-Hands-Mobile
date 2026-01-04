@@ -3,12 +3,16 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.sell
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
+import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,8 +20,10 @@ import javax.inject.Inject
  * Representa los posibles estados del proceso de creación o validación
  * del perfil de vendedor.
  *
- * Estos estados son observados por la UI para renderizar el contenido
- * correspondiente.
+ * Esta enumeración es observada por la UI para decidir:
+ * - Navegación automática
+ * - Visualización de diálogos
+ * - Estados de carga o error
  */
 enum class SellerCreationStatus {
     /** Estado inicial, sin acciones en curso. */
@@ -26,10 +32,10 @@ enum class SellerCreationStatus {
     /** Indica que el proceso está en ejecución. */
     LOADING,
 
-    /** El vendedor fue creado correctamente. */
+    /** El vendedor fue creado y el rol de usuario actualizado correctamente. */
     SUCCESS,
 
-    /** El vendedor ya existía en el sistema. */
+    /** El usuario ya era un vendedor. */
     ALREADY_EXISTS,
 
     /** Ocurrió un error durante el proceso. */
@@ -37,136 +43,159 @@ enum class SellerCreationStatus {
 }
 
 /**
- * ViewModel responsable de la lógica de negocio relacionada con el rol de vendedor.
+ * ViewModel responsable de la lógica de negocio para convertir
+ * un usuario cliente en vendedor.
  *
- * Centraliza la verificación de existencia de un vendedor y su creación en caso
- * de no existir, exponiendo un único flujo de estado observable por la UI.
+ * Responsabilidades principales:
+ * - Verificar el rol actual del usuario autenticado.
+ * - Orquestar el proceso de conversión a vendedor.
+ * - Exponer el estado del proceso de forma reactiva.
+ * - Sincronizar periódicamente los datos de vendedores con la API.
  *
- * Sigue el patrón MVVM y utiliza corrutinas para ejecutar operaciones asíncronas
- * de manera segura dentro del ciclo de vida del ViewModel.
+ * Sigue el patrón MVVM utilizando [StateFlow] para un estado observable
+ * y coroutines para la ejecución asíncrona.
  *
- * @property sellerRepository Repositorio que gestiona el acceso a datos de vendedores.
+ * @property sellerRepository Repositorio encargado de la lógica de vendedores.
+ * @property userRepository Repositorio de usuarios.
+ * @property userPreferencesRepository Repositorio de preferencias del usuario (DataStore).
  */
 @HiltViewModel
 class SellViewModel @Inject constructor(
-    private val sellerRepository: SellerRepository
+    private val sellerRepository: SellerRepository,
+    private val userRepository: UserRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
-
     /**
-     * Estado interno mutable que representa el estado actual del proceso.
+     * Estado interno mutable que representa el estado del proceso
+     * de creación o validación del vendedor.
      */
     private val _status = MutableStateFlow<SellerCreationStatus>(SellerCreationStatus.IDLE)
 
     /**
-     * Estado público e inmutable observado por la capa de UI.
+     * Estado público e inmutable expuesto a la UI.
      */
     val status: StateFlow<SellerCreationStatus> = _status
 
-    /*
-    * Expone el Flow de vendedores directamente desde el repositorio
-    * Es necesario usar esta variable en caso que se quieran mostrar los vendedores en tiempo real
-    * Es decir, cada vez que se actualicen los mismos con startPeriodicSync()
-    * */
-    val sellers: Flow<List<Seller>> = sellerRepository.getSellers()
+    /**
+     * Estado que contiene el nombre del emprendimiento ingresado por el usuario.
+     */
+    private val _entrepreneurshipName = MutableStateFlow("")
 
+    /**
+     * Flujo observable del nombre del emprendimiento.
+     */
+    val entrepreneurshipName: StateFlow<String> = _entrepreneurshipName
+
+    /**
+     * Al inicializar el ViewModel se inicia la sincronización periódica
+     * de vendedores con la API.
+     */
     init {
-        // Inicia el proceso de sincronización periódica.
         startPeriodicSync()
     }
 
     /**
-     * Inicia una corrutina que se encarga de refrescar la lista de vendedores
-     * a intervalos regulares.
+     * Actualiza el nombre del emprendimiento ingresado por el usuario.
      *
-     * La corrutina se ejecutará mientras el ViewModel esté activo y se cancelará
-     * automáticamente cuando el ViewModel sea destruido, evitando memory leaks.
+     * @param name Nombre del emprendimiento.
      */
-    private fun startPeriodicSync() {
-        viewModelScope.launch {
-            // Define el intervalo de refresco en milisegundos.
-            // Por ejemplo, 30000L = 30 segundos.
-            val refreshIntervalMs = 30000L
+    fun onEntrepreneurshipNameChange(name: String) {
+        _entrepreneurshipName.value = name
+    }
 
-            // Bucle infinito que se ejecuta mientras la corrutina esté activa.
-            while (true) {
-                println("Sincronizando vendedores desde la API...")
-                try {
-                    // Llama al repositorio para actualizar los datos desde la API.
-                    sellerRepository.refreshSellers()
-                    println("Sincronización de vendedores completada.")
-                } catch (e: Exception) {
-                    // Si ocurre un error de red, lo capturamos para que el bucle no se rompa.
-                    println("Error durante la sincronización periódica: ${e.message}")
+    /**
+     * Verifica el estado actual del usuario autenticado.
+     *
+     * Esta función determina si el usuario ya es vendedor o no,
+     * permitiendo a la UI decidir si debe:
+     * - Navegar directamente a la pantalla de ventas
+     * - Mostrar el flujo de confirmación y registro
+     */
+    fun checkCurrentUserStatus() {
+        viewModelScope.launch {
+            _status.value = SellerCreationStatus.LOADING
+            try {
+                val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: throw Exception("Usuario no logueado.")
+                val user = userRepository.getUserById(userId).firstOrNull() ?: throw Exception("Usuario no encontrado.")
+
+                if (user.role == UserRole.SELLER) {
+                    _status.value = SellerCreationStatus.ALREADY_EXISTS
+                } else {
+                    // Si no es vendedor, volvemos a IDLE para que la UI muestre el diálogo.
+                    _status.value = SellerCreationStatus.IDLE
                 }
-                // Pausa la corrutina durante el intervalo definido antes de la siguiente ejecución.
-                delay(refreshIntervalMs)
+            } catch (e: Exception) {
+                _status.value = SellerCreationStatus.ERROR
             }
         }
     }
 
     /**
-     * Verifica si un usuario ya posee un perfil de vendedor y lo crea en caso contrario.
+     * Convierte al usuario actual en vendedor.
      *
-     * Esta función encapsula toda la lógica necesaria para:
-     * 1. Consultar la existencia de un vendedor a partir del email.
-     * 2. Crear un nuevo vendedor si no existe.
-     * 3. Actualizar el estado del proceso para su consumo por la UI.
+     * Esta función se ejecuta únicamente cuando el usuario confirma
+     * la creación del emprendimiento y proporciona un nombre válido.
      *
-     * Es la única función que debe ser invocada desde la interfaz de usuario
-     * para iniciar el flujo de conversión a vendedor.
-     *
-     * @param email Dirección de correo electrónico del usuario.
-     * @param name Nombre del vendedor.
-     * @param lastname Apellido del vendedor.
-     * @param phone Número de teléfono de contacto.
-     * @param entrepreneurship Nombre del emprendimiento.
-     * @param address Dirección física del emprendimiento o del vendedor.
+     * El flujo incluye:
+     * - Obtención del usuario actual.
+     * - Validación del rol.
+     * - Creación del vendedor en la API.
+     * - Actualización del rol del usuario localmente.
      */
-    fun becomeSeller(
-        email: String,
-        name: String,
-        lastname: String,
-        phone: String,
-        entrepreneurship: String,
-        address: String
-    ) {
+    fun convertUserToSeller() {
+        if (_entrepreneurshipName.value.isBlank()) {
+            // Si el nombre está vacío, no hacemos nada o mostramos un error específico.
+            // La UI ya debería prevenir esto con `enabled = false`.
+            return
+        }
+
         viewModelScope.launch {
             _status.value = SellerCreationStatus.LOADING
-
             try {
-                // 1. PRIMERO, buscamos si el vendedor ya existe por su email.
-                val existingSeller = sellerRepository.getSellerByEmail(email)
+                val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: throw Exception("Usuario no logueado.")
+                val user = userRepository.getUserById(userId).firstOrNull() ?: throw Exception("Usuario no encontrado.")
 
-                if (existingSeller != null) {
-                    // 2. SI EXISTE: El trabajo está hecho. Ya es un vendedor.
-                    println("Vendedor encontrado con email: $email, ID: ${existingSeller.id}")
+                // La verificación de si ya es vendedor es redundante aquí, pero es una buena salvaguarda.
+                if (user.role == UserRole.SELLER) {
                     _status.value = SellerCreationStatus.ALREADY_EXISTS
-
-                } else {
-                    // 3. SI NO EXISTE: Procedemos a crearlo.
-                    println("Vendedor con email: $email no encontrado. Creando nuevo vendedor...")
-
-                    val newSeller = Seller(
-                        id = 0, // El ID lo calculará el repositorio, aquí no importa.
-                        name = name,
-                        lastname = lastname,
-                        email = email,
-                        phone = phone,
-                        entrepreneurship = entrepreneurship,
-                        address = address
-                    )
-
-                    // Llamamos a la función de creación que ya tiene la lógica del ID autoincremental.
-                    val createdSeller = sellerRepository.createSeller(newSeller)
-
-                    println("Nuevo vendedor creado con ID: ${createdSeller.id}")
-                    _status.value = SellerCreationStatus.SUCCESS
+                    return@launch
                 }
 
+                // Llamar a la función del repositorio que hace la magia.
+                sellerRepository.convertToSeller(user, _entrepreneurshipName.value)
+                    .onSuccess {
+                        _status.value = SellerCreationStatus.SUCCESS
+                    }
+                    .onFailure { error ->
+                        throw error
+                    }
             } catch (e: Exception) {
-                // Si algo falla en la red o en el proceso, se reporta un error.
-                println("Error en el proceso de becomeSeller: ${e.message}")
+                println("Error en el proceso de convertUserToSeller: ${e.message}")
                 _status.value = SellerCreationStatus.ERROR
+            }
+        }
+    }
+
+    /**
+     * Inicia un proceso de sincronización periódica de vendedores
+     * con la API remota.
+     *
+     * La sincronización:
+     * - Se ejecuta una vez al iniciar el ViewModel.
+     * - Luego se repite cada una hora para mantener consistencia
+     *   entre el servidor y la base de datos local.
+     */
+    private fun startPeriodicSync() {
+        viewModelScope.launch {
+            // Sync inmediato (al abrir la pantalla)
+            sellerRepository.syncSellersWithApi()
+
+            // Luego cada hora se actualiza (a intervalos regulares)
+            val refreshIntervalMs = 60 * 60 * 1000L // 1 hora
+
+            while (true) {
+                delay(refreshIntervalMs)
+                sellerRepository.syncSellersWithApi()
             }
         }
     }

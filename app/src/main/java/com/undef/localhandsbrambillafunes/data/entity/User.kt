@@ -32,12 +32,8 @@ data class User(
     val password: String, // IMPORTANTE: En producción, esto debería almacenarse hasheado
     val phone: String,
     val address: String,
+    val role: UserRole,
     val isEmailVerified: Boolean = false, // Por defecto no verificado
     val verificationCode: String? = null, // Código opcional para verificación TODO: tengo que hacer pruebas
     val createdAt: Long = System.currentTimeMillis() // Timestamp de creación
-) {
-    // Propiedad para obtener el nombre completo fácilmente
-    // Con ignore, fullName no se guardará en la base de datos
-    @Ignore
-    val fullName: String = "$name $lastName"
-}
+)

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,24 +32,9 @@ import javax.inject.Inject
  * - Hace que la UI sea más declarativa y reactiva.
  */
 @HiltViewModel
-class ProductViewModel @Inject constructor(private val repository: ProductRepository) : ViewModel() {
-    // Todos los productos disponibles
-    /*val products: StateFlow<List<Product>> = repository.getAllProducts()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    //Inicializamos la BD con los productos migrados
-    init {
-        viewModelScope.launch {
-            // Verificamos si la BD ya tiene productos
-            val hasProducts = repository.getAllProducts().first().isNotEmpty() //First se utiliza porque tenemos un Flow en la lista de productos que traemos
-            if(!hasProducts) {
-                //Si no tiene productos, se insertan los productos migrados
-                val migratedProducts = ProductProviderMigration.getAllAsEntities()
-                repository.insertAll(migratedProducts)
-            }
-        }
-    }*/
-
+class ProductViewModel @Inject constructor(
+    private val repository: ProductRepository,
+) : ViewModel() {
     // Estado interno y externo que expone la lista de productos
     private val _products = MutableStateFlow<List<Product>>(emptyList())
 
@@ -58,20 +44,6 @@ class ProductViewModel @Inject constructor(private val repository: ProductReposi
      * Se actualiza cuando se cargan productos desde la API.
      */
     val products: StateFlow<List<Product>> = _products
-
-    /**
-     * Carga todos los productos desde la API remota y actualiza el estado interno.
-     *
-     * Esta función lanza una corrutina en el `viewModelScope` para evitar
-     * bloquear el hilo principal. Los productos obtenidos se almacenan en `_products`.
-     *
-     * Ideal para pantallas que muestran todos los productos públicos o disponibles.
-     */
-    fun loadAllProducts() {
-        viewModelScope.launch {
-            _products.value = repository.getProducts()
-        }
-    }
 
     /**
      * Carga los productos asociados a un dueño específico utilizando su `ownerId`.
@@ -137,10 +109,6 @@ class ProductViewModel @Inject constructor(private val repository: ProductReposi
     fun deleteProduct(product: Product) = viewModelScope.launch {
         repository.deleteProduct(product)
     }
-
-    fun getProductById(productId: Int): StateFlow<Product?> =
-        repository.getProductById(productId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /**
      * Inserta una lista de productos en la base de datos, reemplazando los existentes si hay conflicto.
