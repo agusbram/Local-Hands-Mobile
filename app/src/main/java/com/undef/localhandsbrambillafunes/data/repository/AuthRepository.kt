@@ -11,6 +11,7 @@ import kotlin.random.Random
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import com.undef.localhandsbrambillafunes.service.EmailService
+import com.undef.localhandsbrambillafunes.util.PasswordManager
 
 /**
  * Repositorio para operaciones de autenticación
@@ -63,7 +64,7 @@ class AuthRepository @Inject constructor(
                 Result.failure(Exception("El email ya esta registrado!"))
             } else {
                 // Hashear la contraseña antes de guardar
-                val hashedPassword = BCrypt.withDefaults().hashToString(12, user.password.toCharArray())
+                val hashedPassword = PasswordManager.hashPassword(user.password)
                 val userWithHashedPassword = user.copy(password = hashedPassword)
 
                 val userId = userDao.insertUser(userWithHashedPassword)
@@ -100,7 +101,7 @@ class AuthRepository @Inject constructor(
 
             if (user != null) {
                 // Verificar contraseña hasheada
-                if (BCrypt.verifyer().verify(password.toCharArray(), user.password).verified) {
+                if(PasswordManager.checkPassword(password, user.password)) {
                     if (user.isEmailVerified) {
                         // Guardar sesión del usuario
                         saveUserSession(user.id, user.email)

@@ -110,6 +110,22 @@ interface UserDao {
     fun getUserByIdFlow(id: Int): Flow<User?>
 
     /**
+     * Obtiene un usuario por su identificador mediante una consulta única
+     * (no reactiva).
+     *
+     * Es especialmente útil para:
+     * - Validaciones puntuales (por ejemplo, verificación de contraseña).
+     * - Operaciones internas de lógica de negocio.
+     * - Casos donde no se requiere reactividad en la UI.
+     *
+     * @param userId Identificador único del usuario a buscar.
+     * @return Instancia de [User] si existe un registro con el ID indicado,
+     * o `null` si no se encuentra ningún usuario.
+     */
+    @Query("SELECT * FROM UserEntity WHERE id = :userId")
+    suspend fun getUserByIdNonFlow(userId: Int): User?
+
+    /**
      * Elimina todos los usuarios (SOLO PARA PRUEBAS)
      */
     @Query("DELETE FROM UserEntity")

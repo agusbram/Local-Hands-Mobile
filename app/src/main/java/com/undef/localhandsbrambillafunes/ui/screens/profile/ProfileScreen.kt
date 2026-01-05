@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -59,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -439,9 +441,11 @@ fun ProfileScreen(navController: NavController,
                             repeatPassword = ""
                         },
                         //Esta accion ocurre cuando el usuario presiona "confirmar: se limpian los campos y se cierra el diálogo
-                        onConfirm = {
-                            Toast.makeText(context, "Contraseña cambiada", Toast.LENGTH_SHORT)
-                                .show()
+                        onConfirm = { currentPassword, confirmedNewPassword ->
+                            profileViewModel.changeUserPassword(
+                                currentPassword,
+                                confirmedNewPassword
+                            )
                             newPassword = ""
                             repeatPassword = ""
                             showPasswordDialog = false
@@ -588,9 +592,13 @@ fun ChangePasswordDialog(
     repeatPassword: String,
     onPasswordChange: (String) -> Unit,
     onRepeatChange: (String) -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var currentPassword by remember { mutableStateOf("") }
+    // Para cambiar la visibilidad de la contraseña actual
+    var currentPasswordVisible by remember { mutableStateOf(false) }
+
     // Para verificar si la contraseña nueva es válida
     val isNewPasswordValid = isValidPassword(newPassword)
     // Para verificar si la contraseña repetida es identica al campo de la nueva contraseña
@@ -603,11 +611,29 @@ fun ChangePasswordDialog(
 
 
     // El componente Dialog muestra mensajes emergentes o solicita entradas del usuario en una capa sobre el contenido principal de la app
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Cambiar contraseña") },
         text = {
             Column {
+                // Campo editable de la clave actual del usuario para agregar capa de seguridad
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = { Text("Contraseña Actual") },
+                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), //Establece que la contraseña no se pueda ver a simple vista
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        val icon = if (currentPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                        IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                            Icon(imageVector = icon, contentDescription = "Ver contraseña")
+                        }
+                    },
+                    singleLine = true,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Campo editable de la nueva clave para modificar la antigua
                 OutlinedTextField(
                     value = newPassword,
                     onValueChange = onPasswordChange,
@@ -629,6 +655,8 @@ fun ChangePasswordDialog(
                     )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // Campo editable de la repetición de la nueva clave para verificar que sea la misma que la nueva clave para modificar la antigua
                 OutlinedTextField(
                     value = repeatPassword,
                     onValueChange = onRepeatChange,
@@ -653,8 +681,10 @@ fun ChangePasswordDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = onConfirm,
-                enabled = isNewPasswordValid && doPasswordsMatch
+                onClick = {
+                    onConfirm(currentPassword, newPassword)
+                },
+                enabled = currentPassword.isNotBlank() && isNewPasswordValid && doPasswordsMatch
             ) {
                 Text("Confirmar")
             }

@@ -1,6 +1,8 @@
 package com.undef.localhandsbrambillafunes.ui.viewmodel.profile
 
 import android.util.Log
+import androidx.compose.animation.core.copy
+import androidx.compose.ui.semantics.password
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
@@ -9,7 +11,9 @@ import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.util.PasswordManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -236,13 +240,13 @@ class ProfileViewModel @Inject constructor(
         val apiSeller = sellerRepository.getSellerByEmail(currentUser.email)
 
         if (apiSeller == null) {
-            Log.e("ProfileViewModel", "❌ CRÍTICO: Seller no encontrado en API para email: ${currentUser.email}")
+            Log.e("ProfileViewModel", "CRÍTICO: Seller no encontrado en API para email: ${currentUser.email}")
             _uiEventChannel.send(UiEvent.ShowToast("Error: Tu perfil de vendedor no existe en el servidor. Contacta soporte."))
             return
         }
 
         val realSellerId = apiSeller.id
-        Log.d("ProfileViewModel", "✅ Seller encontrado en API. ID real: $realSellerId")
+        Log.d("ProfileViewModel", "Seller encontrado en API. ID real: $realSellerId")
 
         // Crear un objeto Seller con el ID REAL de la API
         val sellerToUpdate = Seller(
@@ -255,14 +259,14 @@ class ProfileViewModel @Inject constructor(
             entrepreneurship = editState.value.entrepreneurship
         )
 
-        Log.d("ProfileViewModel", "📝 Datos a actualizar:")
+        Log.d("ProfileViewModel", "Datos a actualizar:")
         Log.d("ProfileViewModel", "  - ID: ${sellerToUpdate.id}")
         Log.d("ProfileViewModel", "  - Email: ${sellerToUpdate.email}")
         Log.d("ProfileViewModel", "  - Nombre: ${sellerToUpdate.name}")
 
         // Actualizar en la API el vendedor
         sellerRepository.updateSellerApi(sellerToUpdate).onSuccess {
-            Log.d("ProfileViewModel", "✅ Seller actualizado exitosamente en API")
+            Log.d("ProfileViewModel", "Seller actualizado exitosamente en API")
 
             // Actualizar User en Room
             val userToUpdate = currentUser.copy(
@@ -274,11 +278,11 @@ class ProfileViewModel @Inject constructor(
             )
 
             userRepository.updateUser(userToUpdate)
-            Log.d("ProfileViewModel", "✅ User actualizado en Room")
+            Log.d("ProfileViewModel", "User actualizado en Room")
 
             // Actualizar Seller en Room
             sellerRepository.updateSeller(sellerToUpdate)
-            Log.d("ProfileViewModel", "✅ Seller actualizado en Room")
+            Log.d("ProfileViewModel", "Seller actualizado en Room")
 
             // Sincronizar lista completa
             sellerRepository.syncSellersWithApi()
@@ -287,10 +291,10 @@ class ProfileViewModel @Inject constructor(
             originalSeller = sellerToUpdate
             originalUser = userToUpdate
 
-            _uiEventChannel.send(UiEvent.ShowToast("✅ Perfil actualizado correctamente"))
+            _uiEventChannel.send(UiEvent.ShowToast("Perfil actualizado correctamente"))
 
         }.onFailure { error ->
-            Log.e("ProfileViewModel", "❌ Error actualizando seller en API", error)
+            Log.e("ProfileViewModel", "Error actualizando seller en API", error)
 
             // Manejar errores específicos
             val errorMessage = when {
@@ -303,9 +307,9 @@ class ProfileViewModel @Inject constructor(
             _uiEventChannel.send(UiEvent.ShowToast(errorMessage))
 
             // Como resguardo, actualizar solo localmente
-            Log.w("ProfileViewModel", "⚠️ Actualizando solo localmente como fallback")
+            Log.w("ProfileViewModel", "⚠Actualizando solo localmente como fallback")
             sellerRepository.updateSeller(sellerToUpdate)
-            _uiEventChannel.send(UiEvent.ShowToast("⚠️ Perfil actualizado solo localmente"))
+            _uiEventChannel.send(UiEvent.ShowToast("Perfil actualizado solo localmente"))
         }
 
         Log.d("ProfileViewModel", "=== FIN SAVE SELLER PROFILE ===")
@@ -339,6 +343,69 @@ class ProfileViewModel @Inject constructor(
             phone = seller.phone,
             entrepreneurship = seller.entrepreneurship
         )
+    }
+
+    // --------------------------------------------------
+    // CAMBIO DE CONTRASEÑA
+    // --------------------------------------------------
+
+    /**
+     * Cambia la contraseña del usuario actualmente autenticado.
+     *
+     * El proceso sigue los siguientes pasos:
+     * 1. Obtiene el identificador del usuario desde DataStore.
+     * 2. Recupera los datos del usuario desde la base de datos local (Room).
+     * 3. Verifica que la contraseña actual ingresada coincida con la almacenada,
+     *    utilizando verificación segura mediante BCrypt.
+     * 4. Genera un nuevo hash BCrypt para la nueva contraseña y actualiza el usuario.
+     *
+     * Todos los resultados y errores se comunican a la UI mediante eventos
+     * enviados a través de [_uiEventChannel].
+     *
+     * Esta función se ejecuta dentro de [viewModelScope], garantizando:
+     * - Cancelación automática cuando el ViewModel es destruido.
+     * - Ejecución asíncrona sin bloquear el hilo principal.
+     *
+     * @param currentPasswordAttempt Contraseña actual ingresada por el usuario
+     * en texto plano.
+     * @param newPassword Nueva contraseña ingresada por el usuario en texto plano.
+     */
+    fun changeUserPassword(currentPasswordAttempt: String, newPassword: String) {
+        viewModelScope.launch {
+            // Obtiene el ID del usuario desde DataStore
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+            if (userId == null) {
+                _uiEventChannel.send(UiEvent.ShowToast("No se encontró el usuario en el DataStore"))
+                return@launch
+            }
+
+            // Obtiene los datos del usuario desde Room
+            val user = userRepository.getUserByIdNonFlow(userId)
+            if (user == null) {
+                _uiEventChannel.send(UiEvent.ShowToast("No se encontró el usuario en la base de datos"))
+                return@launch
+            }
+
+            // Verifica la contraseña actual
+            if(!PasswordManager.checkPassword(currentPasswordAttempt, user.password)) {
+                _uiEventChannel.send(UiEvent.ShowToast("La contraseña actual es incorrecta."))
+                return@launch
+            }
+
+            // Procede a actualizar (llamando a la función simple del repositorio)
+            try {
+                val hashedNewPassword = PasswordManager.hashPassword(newPassword)
+                val updatedUser = user.copy(password = hashedNewPassword)
+                userRepository.updateUser(updatedUser) // Llama a la función que solo actualiza Room
+                _uiEventChannel.send(UiEvent.ShowToast("¡Contraseña actualizada con éxito!"))
+            } catch (e: CancellationException) {
+                _uiEventChannel.send(UiEvent.ShowToast("Se canceló la corrutina por una falla desconocida."))
+                throw e
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error al actualizar contraseña", e)
+                _uiEventChannel.send(UiEvent.ShowToast("Ocurrió un error inesperado al actualizar."))
+            }
+        }
     }
 
     // --------------------------------------------------

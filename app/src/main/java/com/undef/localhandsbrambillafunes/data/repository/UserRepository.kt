@@ -19,7 +19,7 @@ import com.undef.localhandsbrambillafunes.data.remote.ApiService
 class UserRepository @Inject constructor(
     private val userDao: UserDao,
     private val authRepository: AuthRepository,
-    private val api: ApiService
+    private val apiService: ApiService
 ) {
     /**
      * Actualiza los datos de un usuario existente.
@@ -40,6 +40,19 @@ class UserRepository @Inject constructor(
         val currentUserId = authRepository.getCurrentUserId()!!
 
         return userDao.getUserById(currentUserId)
+    }
+
+    /**
+     * Obtiene un usuario por su ID sin utilizar Flow.
+     *
+     * Útil para operaciones puntuales donde no se requiere observar cambios en tiempo real,
+     * como validaciones o actualizaciones específicas.
+     *
+     * @param userId Identificador único del usuario.
+     * @return Instancia de [User] si existe, o `null` en caso contrario.
+     */
+    suspend fun getUserByIdNonFlow(userId: Int): User? {
+        return userDao.getUserByIdNonFlow(userId)
     }
 
     /**
