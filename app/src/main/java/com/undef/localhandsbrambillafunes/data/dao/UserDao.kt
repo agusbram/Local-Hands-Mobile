@@ -130,4 +130,19 @@ interface UserDao {
      */
     @Query("DELETE FROM UserEntity")
     suspend fun deleteAllUsers()
+
+    /**
+     * Elimina un usuario de la base de datos local.
+     *
+     * Este método realiza una operación de borrado sobre la entidad [User]
+     * utilizando Room, eliminando de forma permanente el registro correspondiente
+     * de la tabla de usuarios.
+     *
+     * Debe utilizarse cuando la cuenta del usuario ha sido eliminada del sistema
+     * o cuando ya no se requiere conservar su información local.
+     *
+     * @param user Instancia de [User] que se desea eliminar.
+     */
+    @Delete
+    suspend fun deleteUser(user: User)
 }

@@ -1,8 +1,6 @@
 package com.undef.localhandsbrambillafunes.ui.viewmodel.profile
 
 import android.util.Log
-import androidx.compose.animation.core.copy
-import androidx.compose.ui.semantics.password
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
@@ -11,6 +9,7 @@ import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.util.PasswordManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -409,6 +408,52 @@ class ProfileViewModel @Inject constructor(
     }
 
     // --------------------------------------------------
+    // ELIMINACION DE CUENTA DE USUARIO/VENDEDOR
+    // --------------------------------------------------
+
+    /**
+     * Elimina de forma permanente la cuenta del usuario actualmente autenticado.
+     *
+     * Este método coordina el proceso completo de eliminación de cuenta, delegando
+     * la lógica de borrado al repositorio correspondiente y gestionando el estado
+     * de sesión y la navegación posterior.
+     *
+     * Cualquier error ocurrido durante el proceso (fallos de red, base de datos
+     * o inconsistencias de datos) es capturado y comunicado a la UI mediante
+     * eventos de tipo [UiEvent.ShowToast].
+     */
+    fun deleteAccount() {
+        viewModelScope.launch {
+            // Obtener el ID del usuario desde DataStore para saber a quién borrar
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+            if (userId == null) {
+                _uiEventChannel.send(UiEvent.ShowToast("Error: No se pudo identificar al usuario."))
+                return@launch
+            }
+
+            try {
+                // Llama al repositorio para que maneje la lógica de borrado.
+                // El ViewModel no necesita saber si es vendedor o no, solo da la orden.
+                userRepository.deleteUserAndAssociatedData(userId)
+
+                // Notifica a la UI que la operación fue exitosa
+                _uiEventChannel.send(UiEvent.ShowToast("Cuenta eliminada con éxito."))
+
+                // Limpia la sesión local (muy importante)
+                userPreferencesRepository.clearUserSession()
+
+                // Navega fuera de la pantalla de perfil (por ejemplo, a la pantalla de login)
+                _uiEventChannel.send(UiEvent.NavigateAndClearStack(AppScreens.LoginScreen.route))
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error al eliminar la cuenta", e)
+                _uiEventChannel.send(UiEvent.ShowToast("Error al eliminar la cuenta: ${e.message}"))
+            }
+        }
+    }
+
+
+    // --------------------------------------------------
     // CIERRE DE SESIÓN
     // --------------------------------------------------
 
@@ -446,4 +491,5 @@ data class EditProfileState(
  */
 sealed class UiEvent {
     data class ShowToast(val message: String) : UiEvent()
+    data class NavigateAndClearStack(val route: String) : UiEvent()
 }

@@ -1,6 +1,7 @@
 package com.undef.localhandsbrambillafunes.data.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -92,6 +93,18 @@ interface SellerDao {
     fun getSellerById(id: Int): Flow<Seller?>
 
     /**
+     * Obtiene un vendedor por su identificador único sin utilizar un flujo reactivo.
+     *
+     * Este método consulta la base de datos local (Room) y devuelve una única instancia
+     * de [Seller] correspondiente al ID proporcionado, sin observar cambios posteriores.
+     *
+     * @param sellerId Identificador único del vendedor a buscar.
+     * @return Instancia de [Seller] si existe en la base de datos, o `null` en caso contrario.
+     */
+    @Query("SELECT * FROM SellerEntity WHERE id = :sellerId")
+    suspend fun getSellerByIdNonFlow(sellerId: Int): Seller?
+
+    /**
      * Obtiene un vendedor por su identificador de forma suspendida
      * (no reactiva).
      *
@@ -117,4 +130,19 @@ interface SellerDao {
      */
     @Query("DELETE FROM SellerEntity")
     suspend fun deleteAll()
+
+    /**
+     * Elimina un vendedor de la base de datos local.
+     *
+     * Este método realiza una operación de borrado sobre la entidad [Seller]
+     * utilizando Room, eliminando de forma permanente el registro correspondiente
+     * de la tabla de vendedores.
+     *
+     * Debe utilizarse cuando el vendedor ya no es válido en el sistema o cuando
+     * la cuenta asociada ha sido eliminada.
+     *
+     * @param seller Instancia de [Seller] que se desea eliminar.
+     */
+    @Delete
+    suspend fun deleteSeller(seller: Seller)
 }
