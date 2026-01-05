@@ -777,6 +777,26 @@ fun LogoutConfirmationDialog(
     )
 }
 
+/**
+ * Diálogo de confirmación para la eliminación permanente de la cuenta del usuario.
+ *
+ * Este composable muestra un cuadro de diálogo modal que solicita una confirmación
+ * explícita antes de proceder con la eliminación definitiva de la cuenta.
+ *
+ * Características principales:
+ * - Advierte al usuario que la acción es irreversible.
+ * - Informa que se eliminarán todos los datos asociados a la cuenta, incluyendo
+ *   información personal y, en caso de corresponder, productos del vendedor.
+ * - Proporciona acciones claras para confirmar o cancelar la operación.
+ *
+ * El diálogo se muestra sobre el contenido actual y bloquea la interacción
+ * con la pantalla subyacente hasta que el usuario tome una decisión.
+ *
+ * @param onDismiss Acción que se ejecuta cuando el usuario cancela la operación
+ *                  o cierra el diálogo sin confirmar.
+ * @param onConfirm Acción que se ejecuta cuando el usuario confirma la eliminación
+ *                  de la cuenta.
+ */
 @Composable
 fun ConfirmDeleteDialog(
     onDismiss: () -> Unit,
