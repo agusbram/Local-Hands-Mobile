@@ -1,23 +1,4 @@
 {
-  "sellers": [
-    {
-      "id": "1",
-      "address": "Avenida Fuerza Aerea Argentina",
-      "email": "truktekalert@gmail.com",
-      "entrepreneurship": "ALFINLOLOGRE",
-      "lastname": "BRAMBI",
-      "name": "VOSPODES",
-      "phone": "3541207081"
-    },
-    {
-      "id": "2",
-      "address": "xczxczczx",
-      "email": "agustinbram@gmail.com",
-      "entrepreneurship": "AGUSYCELEPORSIEMPRE",
-      "lastname": "BRAMAYLLON",
-      "name": "AGUStinCELEHERMOSA",
-      "phone": "1234567890"
-    }
-  ],
+  "sellers": [],
   "products": []
 }

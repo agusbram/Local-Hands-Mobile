@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import coil.compose.rememberAsyncImagePainter
 import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
@@ -112,6 +114,9 @@ fun ProfileScreen(navController: NavController,
     //Variable para dialog de logout
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    // Variable para dialog de eliminación de cuenta de usuario/vendedor
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
     // Estado para guardar la imagen seleccionada
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -131,24 +136,57 @@ fun ProfileScreen(navController: NavController,
      * LaunchedEffect se suscribe al flujo de eventos del ViewModel (ProfileViewModel para en este caso).
      * 'key1 = true' significa que se ejecutará una sola vez y se mantendrá escuchando.
      */
-    LaunchedEffect(key1 = true) {
+    /*LaunchedEffect(key1 = true) {
         // Llama a la función para cargar/refrescar los datos del perfil.
         profileViewModel.refreshUserProfile()
 
-        /**
+        *//**
          * Lanza una nueva corrutina para escuchar eventos de la UI (como Toasts)
          * de forma continua, sin bloquear la corrutina principal.
-         */
+         *//*
         launch {
             profileViewModel.uiEventFlow.collect { event ->
                 when (event) {
                     is UiEvent.ShowToast -> {
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     }
+                    is UiEvent.Navigate -> {
+                        navController.navigate(event.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+                    }
                 }
             }
         }
-}
+    }*/
+
+    /**
+     * --- ESCUCHA DE EVENTOS DE LA UI ---
+     * LaunchedEffect se suscribe al flujo de eventos del ViewModel (ProfileViewModel para en este caso).
+     * 'key1 = true' significa que se ejecutará una sola vez y se mantendrá escuchando.
+     */
+    LaunchedEffect(key1 = true) {
+        profileViewModel.uiEventFlow.collect { event ->
+            when (event) {
+                is UiEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is UiEvent.NavigateAndClearStack -> {
+                    // Navega y limpia todo el backstack
+                    navController.navigate(event.route) {
+                        // Limpia TODO el backstack hasta la ruta raíz
+                        popUpTo(0) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         // Barra Superior con título y acciones
@@ -400,7 +438,7 @@ fun ProfileScreen(navController: NavController,
                 })
                 // Texto clickeable para eliminar la cuenta
                 Text("Eliminar cuenta", color = Color.Red, modifier = Modifier.clickable {
-                    Toast.makeText(context, "Eliminar cuenta (futuro)", Toast.LENGTH_SHORT).show()
+                    showDeleteConfirmDialog = true
                 })
 
                 Spacer(Modifier.height(32.dp))
@@ -474,6 +512,17 @@ fun ProfileScreen(navController: NavController,
                         },
                         // En el caso que se descarte la opción, es decir, se seleccione que no se desea cerrar sesión, quita el dialog de cerrar sesión de la pantalla
                         onDismiss = { showLogoutDialog = false }
+                    )
+                }
+
+                // Dialog eliminación de cuenta de usuario/vendedor
+                if (showDeleteConfirmDialog) {
+                    ConfirmDeleteDialog(
+                        onDismiss = { showDeleteConfirmDialog = false },
+                        onConfirm = {
+                            showDeleteConfirmDialog = false
+                            profileViewModel.deleteAccount()
+                        }
                     )
                 }
             }
@@ -723,6 +772,35 @@ fun LogoutConfirmationDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("No")
+            }
+        }
+    )
+}
+
+@Composable
+fun ConfirmDeleteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("¿Eliminar Cuenta?") },
+        text = {
+            Text(
+                "Esta acción es irreversible. Se borrarán todos tus datos de la aplicación, incluidos tus productos si eres vendedor.\n\n¿Estás seguro de que quieres continuar?"
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Sí, Eliminar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
             }
         }
     )

@@ -140,4 +140,21 @@ interface ApiService {
      */
     @PATCH("sellers/{id}")
     suspend fun patchSeller(@Path("id") id: Int, @Body sellerPatchDTO: SellerPatchDTO): Response<Seller>
+
+    /**
+     * Elimina un vendedor existente de la API.
+     *
+     * Este método realiza una operación HTTP DELETE sobre el recurso `sellers/{id}`,
+     * eliminando de forma permanente al vendedor identificado por el ID proporcionado.
+     *
+     * Debe utilizarse cuando se desea borrar completamente un vendedor y toda su
+     * información asociada en el sistema.
+     *
+     * @param id Identificador único del vendedor a eliminar.
+     * @return Un [Response] sin cuerpo (`Unit`) que indica el resultado de la operación,
+     *         junto con el código de estado HTTP correspondiente (por ejemplo, 204 No Content
+     *         en caso de éxito).
+     */
+    @DELETE("sellers/{id}")
+    suspend fun deleteSeller(@Path("id") id: Int): Response<Unit>
 }

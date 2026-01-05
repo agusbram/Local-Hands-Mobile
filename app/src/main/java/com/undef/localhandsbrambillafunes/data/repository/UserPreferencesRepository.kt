@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.text.clear
 
 /**
  * Extensión de [Context] que define una única instancia de [DataStore].
@@ -113,6 +114,19 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
     suspend fun clearUserId() {
         context.dataStore.edit { preferences ->
             preferences.remove(PreferencesKeys.USER_ID)
+        }
+    }
+
+    /**
+     * Limpia COMPLETAMENTE la sesión del usuario.
+     * Elimina todas las preferencias guardadas (ID y email), lo que efectivamente
+     * cierra la sesión y borra cualquier rastro del usuario logueado.
+     */
+    suspend fun clearUserSession() {
+        context.dataStore.edit { preferences ->
+            // El método .clear() elimina TODAS las claves guardadas en este DataStore.
+            // Es la forma más rápida y segura de garantizar un cierre de sesión completo.
+            preferences.clear()
         }
     }
 
