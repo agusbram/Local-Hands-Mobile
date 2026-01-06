@@ -53,6 +53,7 @@ data class Seller(
     val lastname: String,
     val email: String,
     val phone: String,
+    val photoUrl: String? = null,
     val entrepreneurship: String,
     val address: String
 )

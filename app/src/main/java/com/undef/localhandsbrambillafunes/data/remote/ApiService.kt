@@ -124,12 +124,12 @@ interface ApiService {
      * Debe utilizarse cuando se desea actualizar todos los campos del vendedor.
      *
      * @param id Identificador único del vendedor a actualizar.
-     * @param seller Objeto [Seller] con la información completa y actualizada.
+     * @param sellerPatchDTO Objeto [SellerPatchDTO] con la información completa y actualizada.
      * @return Un [Response] que contiene el vendedor actualizado en caso de éxito,
      *         junto con el código de estado HTTP correspondiente.
      */
     @PUT("sellers/{id}")
-    suspend fun putSeller(@Path("id") id: Int, @Body seller: Seller): Response<Seller>
+    suspend fun putSeller(@Path("id") id: Int, @Body sellerPatchDTO: SellerPatchDTO): Response<Seller>
 
     /**
      * Actualiza parcialmente los datos de un vendedor existente en la API.
