@@ -33,6 +33,7 @@ data class User(
     val phone: String,
     val address: String,
     val role: UserRole,
+    val photoUrl: String? = null,
     val isEmailVerified: Boolean = false, // Por defecto no verificado
     val verificationCode: String? = null, // Código opcional para verificación TODO: tengo que hacer pruebas
     val createdAt: Long = System.currentTimeMillis() // Timestamp de creación

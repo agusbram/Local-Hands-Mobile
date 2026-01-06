@@ -1,11 +1,12 @@
 package com.undef.localhandsbrambillafunes.ui.screens.profile
 
 import android.net.Uri
+
 import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -60,21 +60,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.UiEvent
 import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
-import kotlinx.coroutines.launch
+import com.undef.localhandsbrambillafunes.R
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,51 +119,25 @@ fun ProfileScreen(navController: NavController,
     // Variable para dialog de eliminación de cuenta de usuario/vendedor
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-    // Estado para guardar la imagen seleccionada
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    // Variable para dialog de eliminación de foto
+    var showDeletePhotoDialog by remember { mutableStateOf(false) }
+
+    val profileState by profileViewModel.uiState.collectAsState()
 
     // Launcher que abre la galería
-    val launcher = rememberLauncherForActivityResult( //Abre el explorador de archivos para seleccionar una imagen
+    val imagePickerLauncher = rememberLauncherForActivityResult( //Abre el explorador de archivos para seleccionar una imagen
         contract = ActivityResultContracts.GetContent() //Recibe la ruta que se define en launch mas abajo con el launcher
     ) { uri: Uri? ->
-        imageUri = uri // Guarda la URI seleccionada
+        // Comprueba que el usuario realmente seleccionó una imagen
+        if(uri != null) {
+            profileViewModel.changeProfilePicture(uri)
+        }
     }
 
-
-
-
-
-    /**
-     * --- ESCUCHA DE EVENTOS DE LA UI ---
-     * LaunchedEffect se suscribe al flujo de eventos del ViewModel (ProfileViewModel para en este caso).
-     * 'key1 = true' significa que se ejecutará una sola vez y se mantendrá escuchando.
-     */
-    /*LaunchedEffect(key1 = true) {
-        // Llama a la función para cargar/refrescar los datos del perfil.
-        profileViewModel.refreshUserProfile()
-
-        *//**
-         * Lanza una nueva corrutina para escuchar eventos de la UI (como Toasts)
-         * de forma continua, sin bloquear la corrutina principal.
-         *//*
-        launch {
-            profileViewModel.uiEventFlow.collect { event ->
-                when (event) {
-                    is UiEvent.ShowToast -> {
-                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                    }
-                    is UiEvent.Navigate -> {
-                        navController.navigate(event.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true
-                            }
-                            launchSingleTop = true
-                        }
-                    }
-                }
-            }
-        }
-    }*/
+    // Refrescar la foto al entrar a la pantalla por única vez
+    LaunchedEffect(Unit) {
+        profileViewModel.refreshPhotoUrl()
+    }
 
     /**
      * --- ESCUCHA DE EVENTOS DE LA UI ---
@@ -173,6 +149,12 @@ fun ProfileScreen(navController: NavController,
             when (event) {
                 is UiEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+
+                    // Si el mensaje es sobre la foto, refrescar
+                    if (event.message.contains("foto", ignoreCase = true) ||
+                        event.message.contains("photo", ignoreCase = true)) {
+                        profileViewModel.refreshPhotoUrl()
+                    }
                 }
                 is UiEvent.NavigateAndClearStack -> {
                     // Navega y limpia todo el backstack
@@ -286,37 +268,72 @@ fun ProfileScreen(navController: NavController,
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Imagen de perfil clickeable
                 Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape) //Recorta el contenido de la box formando un circulo
-                        .clickable {
-                            //Solo mostrar archivos que comiencen con image/, como image/jpeg, image/png, etc. (de tipo MIME)
-                            launcher.launch("image/*") // Abre selector de imágenes, permitiendo cambiar la imagen al hacerle click encima de la foto
-                        }) {
-                    if (imageUri != null) {
-                        //Mostrar imagen seleccionada
-                        Image(
-                            painter = rememberAsyncImagePainter(imageUri), //Renderiza la imagen directamente desde su URI
-                            contentDescription = "Avatar seleccionado",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        //Mostrar imagen por defecto
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Avatar por defecto",
-                            modifier = Modifier.fillMaxSize(),
-                            tint = Color.Gray
-                        )
-                    }
+                    modifier = Modifier.size(120.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Obtener el estado del perfil en tiempo real
+                    val profileState by profileViewModel.uiState.collectAsState()
+
+                    // Obtener la URL de manera segura
+                    val currentPhotoUrl = profileState.photoUrl
+
+                    // Muestra la foto de perfil con una animación de carga
+                    // Permite cargar la foto desde el almacenamiento interno del dispositivo emulador
+                    AsyncImage(
+                        model = if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty()) {
+                            val file = File(currentPhotoUrl)
+                            // Verifica que la URL de la foto del perfil existe antes de cargarlo
+                            if (file.exists()) {
+                                file
+                            } else {
+                                R.drawable.ic_profile_placeholder
+                            }
+                        } else {
+                            R.drawable.ic_profile_placeholder
+                        },
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            .clickable {
+                                if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty()) {
+                                    showDeletePhotoDialog = true
+                                } else {
+                                    imagePickerLauncher.launch("image/*")
+                                }
+                            },
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                        error = painterResource(id = R.drawable.ic_profile_placeholder)
+                    )
                 }
+
+                // Texto explicativo debajo de la foto de perfil de usuario/vendedor
+                Text(
+                    text = profileState.photoUrl?.let { url ->
+                        if (url.isNotEmpty()) {
+                            val file = File(url)
+                            // Muestra distinto texto dependiendo de si existe o no la URL de la foto de perfil
+                            if (file.exists()) {
+                                "Toca la foto para cambiarla o eliminarla"
+                            } else {
+                                "Toca para agregar una foto de perfil"
+                            }
+                        } else {
+                            "Toca para agregar una foto de perfil"
+                        }
+                    } ?: "Toca para agregar una foto de perfil",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
 
                 Spacer(Modifier.height(12.dp))
 
                 //Info personal
-                //Campos editables: nombre completo, teléfono, domicilio y ciudad
+                //Campos editables: nombre completo, teléfono, domicilio y ciudad, etc
 
                 // Si el email está vacío, significa que los datos aún no se han cargado.
                 if (editState.email.isBlank()) {
@@ -523,6 +540,59 @@ fun ProfileScreen(navController: NavController,
                             showDeleteConfirmDialog = false
                             profileViewModel.deleteAccount()
                         }
+                    )
+                }
+
+                // Dialog o ventana para opciones de foto en caso que exista una foto previamente cargada
+                if (showDeletePhotoDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDeletePhotoDialog = false },
+                        title = { Text("Foto de perfil") },
+                        text = { Text("¿Qué quieres hacer con tu foto de perfil?") },
+                        confirmButton = {
+                            Column {
+                                // Cambiar foto
+                                Button(
+                                    onClick = {
+                                        showDeletePhotoDialog = false
+                                        imagePickerLauncher.launch("image/*")
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text("Cambiar foto")
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Eliminar foto
+                                Button(
+                                    onClick = {
+                                        showDeletePhotoDialog = false
+                                        profileViewModel.deleteProfilePicture()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Text("Eliminar foto")
+                                }
+
+                                // Cancelar acción de cambio o eliminación de foto
+                                TextButton(
+                                    onClick = { showDeletePhotoDialog = false },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("Cancelar")
+                                }
+                            }
+                        },
+                        // No se utiliza ya que no queda estéticamente bien en el diseño, es opcional su uso
+                        // Se reemplaza por el TextButton de cancelar acción de arriba
+                        dismissButton = {}
                     )
                 }
             }

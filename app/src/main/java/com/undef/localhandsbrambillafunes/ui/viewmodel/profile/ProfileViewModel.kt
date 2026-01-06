@@ -1,5 +1,6 @@
 package com.undef.localhandsbrambillafunes.ui.viewmodel.profile
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.util.FileStorageManager
 import com.undef.localhandsbrambillafunes.util.PasswordManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.flow.receiveAsFlow
+import java.io.File
 
 /**
  * ViewModel encargado de gestionar la lógica de negocio de la pantalla de perfil.
@@ -40,7 +43,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val sellerRepository: SellerRepository,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val fileStorageManager: FileStorageManager
 ) : ViewModel() {
     // --------------------------------------------------
     // ESTADO DE EDICIÓN DEL PERFIL
@@ -87,6 +91,14 @@ class ProfileViewModel @Inject constructor(
      */
     private var dataLoadingJob: Job? = null
 
+    /**
+     * Estado de la UI
+     * En nuestro caso, contiene únicamente la foto de perfil
+     * almacenada por el usuario en tiempo real
+     */
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
     // --------------------------------------------------
     // EVENTOS DE UI (ONE-TIME EVENTS)
     // --------------------------------------------------
@@ -115,8 +127,35 @@ class ProfileViewModel @Inject constructor(
     }
 
     /**
-     * Refresca los datos del perfil del usuario desde la base de datos local
-     * y, en caso de ser vendedor, sincroniza con la API.
+     * Refresca y sincroniza el perfil del usuario actualmente autenticado.
+     *
+     * Este método centraliza la lógica de carga y actualización del estado
+     * del perfil, incluyendo:
+     * - Usuario base
+     * - Rol del usuario
+     * - Foto de perfil
+     * - Información asociada de vendedor (si corresponde)
+     *
+     * El flujo de ejecución es el siguiente:
+     *
+     * 1. Cancela cualquier job de carga previo para evitar ejecuciones concurrentes.
+     * 2. Obtiene el `userId` desde preferencias persistidas.
+     * 3. Escucha de forma reactiva los cambios del usuario desde Room.
+     * 4. Actualiza el estado base de la UI con los datos del usuario.
+     * 5. Si el usuario tiene rol [UserRole.SELLER]:
+     *    - Verifica si la foto del usuario existe pero no está sincronizada con el seller.
+     *    - Sincroniza la foto entre usuario y vendedor si es necesario.
+     *    - Intenta obtener el seller desde la base de datos local.
+     *    - Si no existe localmente, intenta recuperarlo desde la API.
+     *    - Actualiza el estado de edición y la foto de perfil según la fuente válida.
+     * 6. Si el usuario tiene rol CLIENT:
+     *    - Se actualiza únicamente la información del usuario.
+     *
+     * Este método mantiene consistencia entre:
+     * - Base de datos local (Room)
+     * - API remota
+     * - Estado de UI expuesto al composable
+     *
      */
     fun refreshUserProfile() {
         dataLoadingJob?.cancel()
@@ -130,12 +169,26 @@ class ProfileViewModel @Inject constructor(
                 originalUser = user
                 _userRole.value = user.role
 
+                // Se actualiza la foto de perfil del usuario en el estado de la UI
+                _uiState.value = _uiState.value.copy(photoUrl = user.photoUrl)
+
+                // Sincronizar foto de perfil si el usuario tiene pero el seller no
+                if (user.role == UserRole.SELLER) {
+                    val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                    if (seller != null && user.photoUrl != null && seller.photoUrl == null) {
+                        sellerRepository.syncUserPhotoToSeller(userId, user.photoUrl)
+                    }
+                }
+
                 if (user.role == UserRole.SELLER) {
                     // Obtiene la información del vendedor de la base de datos
                     sellerRepository.getSellerById(userId).collectLatest { seller ->
                         if (seller != null) {
                             originalSeller = seller
                             updateEditStateFromSeller(seller)
+
+                            // Se actualiza la foto de perfil del vendedor en el estado de la UI
+                            _uiState.value = _uiState.value.copy(photoUrl = seller.photoUrl)
                         } else {
                             // Si no existe el vendedor en la base de datos, intenta obtenerlo de la API
                             try {
@@ -145,6 +198,9 @@ class ProfileViewModel @Inject constructor(
                                     sellerRepository.updateSeller(apiSeller)
                                     originalSeller = apiSeller
                                     updateEditStateFromSeller(apiSeller)
+
+                                    // Se actualiza la foto de perfil del vendedor en el estado de la UI con la URL de la API
+                                    _uiState.value = _uiState.value.copy(photoUrl = apiSeller.photoUrl)
                                 } else {
                                     // Actualiza el estado de los datos del usuario modificado
                                     updateEditStateFromUser(user)
@@ -202,7 +258,8 @@ class ProfileViewModel @Inject constructor(
             lastName = editState.value.lastName,
             address = editState.value.address,
             phone = editState.value.phone,
-            email = editState.value.email
+            email = editState.value.email,
+            photoUrl = _uiState.value.photoUrl
         )
         if (userToUpdate != null) {
             userRepository.updateUser(userToUpdate)
@@ -255,7 +312,8 @@ class ProfileViewModel @Inject constructor(
             email = editState.value.email,
             address = editState.value.address,
             phone = editState.value.phone,
-            entrepreneurship = editState.value.entrepreneurship
+            entrepreneurship = editState.value.entrepreneurship,
+            photoUrl = _uiState.value.photoUrl ?: ""
         )
 
         Log.d("ProfileViewModel", "Datos a actualizar:")
@@ -273,7 +331,8 @@ class ProfileViewModel @Inject constructor(
                 lastName = editState.value.lastName,
                 email = editState.value.email,
                 address = editState.value.address,
-                phone = editState.value.phone
+                phone = editState.value.phone,
+                photoUrl = _uiState.value.photoUrl
             )
 
             userRepository.updateUser(userToUpdate)
@@ -343,6 +402,181 @@ class ProfileViewModel @Inject constructor(
             entrepreneurship = seller.entrepreneurship
         )
     }
+
+    // --------------------------------------------------
+    // FOTO DE PERFIL
+    // --------------------------------------------------
+
+    /**
+     * Cambia la foto de perfil del usuario actual.
+     *
+     * Flujo de la operación:
+     * 1. Obtiene el ID del usuario desde las preferencias.
+     * 2. Recupera el usuario actual desde la base de datos local.
+     * 3. Elimina el archivo físico de la foto anterior, si existe.
+     * 4. Guarda la nueva imagen seleccionada en el almacenamiento interno.
+     * 5. Limpia imágenes antiguas de perfil para evitar acumulación de archivos.
+     * 6. Actualiza la ruta de la nueva imagen en la entidad User (Room).
+     * 7. Si el usuario es vendedor, sincroniza la foto también con la entidad Seller
+     *    y actualiza la información en la API remota.
+     * 8. Actualiza el estado de la UI para reflejar el cambio inmediatamente.
+     * 9. Notifica el resultado mediante un evento de UI.
+     *
+     * @param imageUri URI de la imagen seleccionada por el usuario.
+     */
+    fun changeProfilePicture(imageUri: Uri) {
+        viewModelScope.launch {
+            // Obtén el usuario actual para tener su objeto y ID
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return@launch
+            val currentUser = userRepository.getUserByIdNonFlow(userId) ?: return@launch
+
+            try {
+                // Borrar foto anterior si existe
+                val currentPhotoUrl = currentUser.photoUrl
+                if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty()) {
+                    val oldFile = File(currentPhotoUrl)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d("ProfileViewModel", "Foto anterior eliminada: $currentPhotoUrl")
+                    }
+                }
+
+                // Copia la nueva imagen al almacenamiento interno y obtén la ruta persistente
+                val newImagePath = fileStorageManager.saveImageToInternalStorage(imageUri)
+
+                if (newImagePath != null) {
+                    // Limpiar fotos antiguas
+                    fileStorageManager.cleanupOldProfileImages(newImagePath)
+                    // Actualizar usuario en la BD
+                    val updatedUser = currentUser.copy(photoUrl = newImagePath)
+                    userRepository.updateUser(updatedUser)
+
+                    // Si es vendedor, actualizar también en Seller
+                    val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                    if (seller != null) {
+                        val updatedSeller = seller.copy(photoUrl = newImagePath)
+                        sellerRepository.updateSeller(updatedSeller)
+                        sellerRepository.updateSellerApi(updatedSeller)
+                    }
+
+                    // Actualizar estado de UI
+                    _uiState.value = _uiState.value.copy(photoUrl = newImagePath)
+                    _uiEventChannel.send(UiEvent.ShowToast("Foto de perfil actualizada."))
+
+                } else {
+                    _uiEventChannel.send(UiEvent.ShowToast("Error al guardar la imagen en el dispositivo."))
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error al cambiar la foto de perfil", e)
+                _uiEventChannel.send(UiEvent.ShowToast("Error al guardar la foto en la base de datos."))
+            }
+        }
+    }
+
+    /**
+     * Refresca la URL de la foto de perfil en el estado de la UI.
+     *
+     * Esta función:
+     * - Obtiene el usuario actual desde la base de datos local.
+     * - Verifica que la ruta de la foto no sea nula ni vacía.
+     * - Comprueba que el archivo físico exista en el almacenamiento interno.
+     * - Actualiza el estado de la UI con una ruta válida o una cadena vacía
+     *   en caso de que la imagen no exista.
+     *
+     * Se utiliza para evitar que la UI intente renderizar rutas inválidas
+     * o archivos eliminados.
+     */
+    fun refreshPhotoUrl() {
+        viewModelScope.launch {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return@launch
+            val user = userRepository.getUserByIdNonFlow(userId) ?: return@launch
+
+            // Manejo seguro de nulos
+            val photoUrlToShow = if (!user.photoUrl.isNullOrEmpty()) {
+                val file = File(user.photoUrl)
+                if (file.exists()) {
+                    user.photoUrl
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
+
+            // Actualizar UI state
+            _uiState.value = _uiState.value.copy(photoUrl = photoUrlToShow)
+            Log.d("ProfileViewModel", "Photo URL refrescada: '$photoUrlToShow'")
+        }
+    }
+
+    /**
+     * Elimina la foto de perfil actual del usuario.
+     *
+     * Flujo de la operación:
+     * 1. Obtiene el ID del usuario desde las preferencias.
+     * 2. Recupera el usuario actual desde la base de datos local.
+     * 3. Elimina el archivo físico de la imagen de perfil si existe.
+     * 4. Actualiza la entidad User en Room estableciendo photoUrl en null.
+     * 5. Si el usuario es vendedor:
+     *    - Actualiza la entidad Seller localmente.
+     *    - Sincroniza la eliminación de la foto con la API remota.
+     * 6. Resetea el estado de la UI para evitar referencias a rutas obsoletas.
+     * 7. Refresca explícitamente la foto mostrada en la UI.
+     * 8. Emite un evento de UI indicando el resultado de la operación.
+     *
+     * En caso de error, se notifica mediante un mensaje de UI sin interrumpir
+     * la ejecución de la aplicación.
+     */
+    fun deleteProfilePicture() {
+        viewModelScope.launch {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return@launch
+            val currentUser = userRepository.getUserByIdNonFlow(userId) ?: return@launch
+
+            try {
+                // Borrar archivo físico si existe
+                val currentPhotoUrl = currentUser.photoUrl
+                if (currentPhotoUrl != null) {
+                    val file = File(currentPhotoUrl)
+                    if (file.exists()) {
+                        file.delete()
+                        Log.d("ProfileViewModel", "Archivo físico eliminado: $currentPhotoUrl")
+                    }
+                }
+
+                // Actualizar usuario en Room
+                val updatedUser = currentUser.copy(photoUrl = null)
+                userRepository.updateUser(updatedUser)
+                Log.d("ProfileViewModel", "Usuario actualizado en Room (photoUrl = null)")
+
+                // Si es vendedor, actualizar también en Seller
+                val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                if (seller != null) {
+                    val updatedSeller = seller.copy(photoUrl = "")
+                    sellerRepository.updateSeller(updatedSeller)
+
+                    val updateResult = sellerRepository.updateSellerApi(updatedSeller)
+                    if (updateResult.isSuccess) {
+                        Log.d("ProfileViewModel", "Seller actualizado en API (photoUrl = \\\"\\\")")
+                    } else {
+                        Log.e("ProfileViewModel", "Error actualizando seller en API: ${updateResult.exceptionOrNull()?.message}")
+                    }
+
+                    Log.d("ProfileViewModel", "Seller actualizado (photoUrl = null)")
+                }
+
+                // Actualizar estado de UI
+                _uiState.value = ProfileUiState(photoUrl = "")
+
+                refreshPhotoUrl()
+
+                _uiEventChannel.send(UiEvent.ShowToast("Foto de perfil eliminada."))
+
+            } catch (e: Exception) {
+                _uiEventChannel.send(UiEvent.ShowToast("Error al eliminar la foto de perfil."))
+            }
+        }
+    }
+
 
     // --------------------------------------------------
     // CAMBIO DE CONTRASEÑA
@@ -485,6 +719,24 @@ data class EditProfileState(
     val entrepreneurship: String = ""
 )
 
+/**
+ * Representa el estado de la interfaz de usuario del perfil.
+ *
+ * Esta clase modela los datos necesarios para renderizar la pantalla
+ * de perfil del usuario y es utilizada como estado observable desde
+ * la capa UI (Jetpack Compose).
+ *
+ * @property photoUrl
+ * Ruta local o remota de la foto de perfil del usuario.
+ * - Puede ser `null` si el usuario nunca configuró una foto.
+ * - Puede ser una cadena vacía si se desea forzar la ausencia de imagen
+ *   en la UI sin utilizar valores nulos.
+ *
+ */
+data class ProfileUiState(
+    val photoUrl: String? = null,
+    // Se pueden añadir más campos si se necesitan en la UI
+)
 
 /**
  * Eventos de UI de un solo uso.

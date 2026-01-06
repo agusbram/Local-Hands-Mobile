@@ -65,7 +65,8 @@ class SellerRepository @Inject constructor(
             email = user.email,
             phone = user.phone,
             address = user.address,
-            entrepreneurship = entrepreneurshipName
+            entrepreneurship = entrepreneurshipName,
+            photoUrl = user.photoUrl
         )
 
         return try {
@@ -86,7 +87,8 @@ class SellerRepository @Inject constructor(
                         lastname = newSellerData.lastname,
                         phone = newSellerData. phone,
                         address = newSellerData.address,
-                        entrepreneurship = newSellerData.entrepreneurship
+                        entrepreneurship = newSellerData.entrepreneurship,
+                        photoUrl = newSellerData.photoUrl
                     )
                 )
                 newSellerData // Usamos los datos locales
@@ -261,7 +263,8 @@ class SellerRepository @Inject constructor(
                 lastname = seller.lastname,
                 phone = seller.phone,
                 address = seller.address,
-                entrepreneurship = seller.entrepreneurship
+                entrepreneurship = seller.entrepreneurship,
+                photoUrl = seller.photoUrl
             )
 
             val response = apiService.patchSeller(seller.id, sellerDto)
@@ -295,15 +298,76 @@ class SellerRepository @Inject constructor(
     }
 
     /**
-     * Intenta actualizar un vendedor utilizando PUT
-     * como alternativa al PATCH.
+     * Sincroniza la foto de perfil de un usuario con su entidad [Seller] asociada.
      *
-     * @param seller Vendedor a actualizar.
-     * @return [Result] indicando éxito o fallo.
+     * Este método se utiliza cuando la foto de perfil del usuario cambia
+     * (por ejemplo, al seleccionar una nueva imagen o eliminarla) y se
+     * requiere reflejar ese cambio en el vendedor correspondiente.
+     *
+     * El flujo de la operación es el siguiente:
+     * - Se obtiene el vendedor local asociado al [userId]
+     * - Si el vendedor existe y el [photoUrl] no es nulo:
+     *   - Se actualiza el campo `photoUrl` en la base de datos local (Room)
+     *   - Se intenta sincronizar el cambio con la API remota
+     *
+     * Si el vendedor no existe localmente o la URL es nula,
+     * la operación no realiza cambios y se considera exitosa.
+     *
+     * @param userId Identificador del usuario/vendedor.
+     * @param photoUrl Ruta o URL de la nueva foto de perfil.
+     *
+     * @return [Result] indicando el éxito o fallo de la sincronización.
+     */
+    suspend fun syncUserPhotoToSeller(userId: Int, photoUrl: String?): Result<Unit> {
+        return try {
+            val seller = sellerDao.getSellerByIdSuspend(userId)
+            if (seller != null && photoUrl != null) {
+                val updatedSeller = seller.copy(photoUrl = photoUrl)
+                sellerDao.updateSeller(updatedSeller)
+
+                // También actualizar en API si es necesario
+                updateSellerApi(updatedSeller)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("SellerRepository", "Error syncing user photo to seller", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Intenta actualizar un vendedor en la API remota utilizando
+     * una operación PUT como mecanismo de respaldo.
+     *
+     * Este método se utiliza cuando una actualización mediante PATCH
+     * falla o no es soportada correctamente por el backend.
+     *
+     * El proceso consiste en:
+     * - Construir un [SellerPatchDTO] con los datos actuales del vendedor
+     * - Enviar una solicitud PUT al endpoint correspondiente
+     * - Si la respuesta es exitosa:
+     *   - Actualizar el vendedor en la base de datos local (Room)
+     *
+     * En caso de error:
+     * - Se registra el detalle del fallo
+     * - Se retorna un [Result.failure] con la información del error
+     *
+     * @param seller Vendedor con los datos a actualizar.
+     *
+     * @return [Result] indicando el resultado de la operación.
      */
     private suspend fun tryPutUpdate(seller: Seller): Result<Unit> {
         return try {
-            val response = apiService.putSeller(seller.id, seller)
+            val sellerDto = SellerPatchDTO(
+                name = seller.name,
+                lastname = seller.lastname,
+                phone = seller.phone,
+                address = seller.address,
+                entrepreneurship = seller.entrepreneurship,
+                photoUrl = seller.photoUrl // Esto será null si se eliminó la foto
+            )
+
+            val response = apiService.putSeller(seller.id, sellerDto)
 
             if (response.isSuccessful) {
                 val updatedSeller = response.body()
@@ -323,5 +387,17 @@ class SellerRepository @Inject constructor(
             Log.e("SellerRepository", "❌ Error en PUT", e)
             Result.failure(e)
         }
+    }
+
+    /**
+     * Obtiene un vendedor por su identificador desde la base de datos local
+     * de forma sincrónica (no reactiva).
+     *
+     * @param sellerId Identificador del vendedor.
+     *
+     * @return Instancia de [Seller] si existe, o `null` en caso contrario.
+     */
+    suspend fun getSellerByIdNonFlow(sellerId: Int): Seller? {
+        return sellerDao.getSellerByIdNonFlow(sellerId)
     }
 }
