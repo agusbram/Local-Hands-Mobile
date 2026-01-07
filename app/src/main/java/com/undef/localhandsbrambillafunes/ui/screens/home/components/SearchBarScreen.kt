@@ -103,7 +103,7 @@ fun SearchBarScreen(navController: NavController) {
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegación */ }
+                    onClick = { navController.navigate(route = AppScreens.SellScreen.route) }
                 )
 
                 // Botón de Categorías
@@ -112,7 +112,7 @@ fun SearchBarScreen(navController: NavController) {
                     label = { Text("Categorias")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegación */ }
+                    onClick = { navController.navigate(route = AppScreens.CategoryScreen.route) }
                 )
             }
         }

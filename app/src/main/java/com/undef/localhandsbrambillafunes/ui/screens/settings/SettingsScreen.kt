@@ -151,7 +151,7 @@ fun SettingsScreen(navController: NavController,
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegacion */ }
+                    onClick = { navController.navigate(AppScreens.SellScreen.route) }
                 )
                 // Boton de Categorias
                 NavigationBarItem(
