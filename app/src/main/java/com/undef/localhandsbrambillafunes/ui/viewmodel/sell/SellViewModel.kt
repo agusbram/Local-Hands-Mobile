@@ -131,6 +131,27 @@ class SellViewModel @Inject constructor(
     }
 
     /**
+     * Determina si el usuario autenticado ya posee el rol de vendedor.
+     *
+     * Esta función consulta el identificador del usuario almacenado en
+     * [UserPreferencesRepository] y obtiene sus datos desde [UserRepository]
+     * para validar su rol actual.
+     *
+     * @return `true` si el usuario existe y su rol es [UserRole.SELLER];
+     * `false` si el usuario no está autenticado, no existe, no es vendedor
+     * o si ocurre cualquier error durante el proceso.
+     */
+    suspend fun isUserAlreadySeller(): Boolean {
+        return try {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return false
+            val user = userRepository.getUserById(userId).firstOrNull() ?: return false
+            user.role == UserRole.SELLER
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Convierte al usuario actual en vendedor.
      *
      * Esta función se ejecuta únicamente cuando el usuario confirma

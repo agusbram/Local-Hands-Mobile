@@ -317,7 +317,17 @@ fun HandleNavigationToSellScreen(
      * Verifica el estado del usuario al iniciar el flujo.
      */
     LaunchedEffect(Unit) {
-        sellViewModel.checkCurrentUserStatus()
+        // Verificación rápida inicial
+        val isAlreadySeller = sellViewModel.isUserAlreadySeller()
+
+        if (isAlreadySeller) {
+            // Navegar directamente
+            navController.navigate(AppScreens.SellScreen.route)
+            onDismiss()
+        } else {
+            // Solo si NO es vendedor, iniciar el flujo de verificación
+            sellViewModel.checkCurrentUserStatus()
+        }
     }
 
     /**
