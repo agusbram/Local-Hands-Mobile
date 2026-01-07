@@ -76,6 +76,8 @@ import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.UiEvent
 import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 import com.undef.localhandsbrambillafunes.R
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +86,9 @@ fun ProfileScreen(navController: NavController,
                   settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
                   profileViewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>()
 ) {
+    // Estado para manejar el diálogo de convertirse en vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
+
     // Se observa el estado de los campos de edición en tiempo real
     val editState by profileViewModel.editState.collectAsState()
 
@@ -243,7 +248,7 @@ fun ProfileScreen(navController: NavController,
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { navController.navigate(AppScreens.SellScreen.route) }
+                    onClick = { showSellDialog = true }
                 )
                 // Boton de Categorias
                 NavigationBarItem(
@@ -597,6 +602,14 @@ fun ProfileScreen(navController: NavController,
                 }
             }
         }
+    }
+    // Muestra el diálogo de conversión a vendedor
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = hiltViewModel<SellViewModel>(),
+            onDismiss = { showSellDialog = false }
+        )
     }
 }
 

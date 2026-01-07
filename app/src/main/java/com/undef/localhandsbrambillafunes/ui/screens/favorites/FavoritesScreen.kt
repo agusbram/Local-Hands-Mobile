@@ -34,10 +34,13 @@ import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.data.model.ProductListItem
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
-import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.setValue
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,13 +48,16 @@ fun FavoritesScreen(
     navController: NavController,
     favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>()
 ) {
+    // Estado para manejar el diálogo de convertirse en vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
+
+    val favorites by favoriteViewModel.favorites.collectAsState()
+
     /*Cargamos la lista de productos favoritos actuales en la UI a través de corrutinas
     (ya que loadFavorites utiliza StateFlow y no tipos de variables estáticas)*/
     LaunchedEffect(Unit) {
         favoriteViewModel.loadFavorites()
     }
-    val favorites by favoriteViewModel.favorites.collectAsState()
-
 
     Scaffold(
         // Barra Superior con título y acciones
@@ -133,7 +139,7 @@ fun FavoritesScreen(
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { navController.navigate(route = AppScreens.SellScreen.route) }
+                    onClick = { showSellDialog = true }
                 )
                 // Boton de Categorias
                 NavigationBarItem(
@@ -161,5 +167,14 @@ fun FavoritesScreen(
                 ProductListItem(product = favoriteProduct, navController = navController)
             }
         }
+    }
+
+    // Muestra el diálogo de conversión a vendedor
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = hiltViewModel<SellViewModel>(),
+            onDismiss = { showSellDialog = false }
+        )
     }
 }

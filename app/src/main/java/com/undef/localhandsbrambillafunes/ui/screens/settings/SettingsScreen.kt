@@ -67,6 +67,8 @@ import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 import androidx.core.net.toUri
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +79,9 @@ fun SettingsScreen(navController: NavController,
     val selectedCity by settingsViewModel.userLocation.collectAsState()
     //var selectedCity by remember { mutableStateOf("Rosario, Santa Fe") }
     var selectedFrequency by remember { mutableStateOf("Una vez al día") }
+
+    // Estado para manejar el diálogo de convertirse en vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         // Barra Superior con título y acciones
@@ -151,7 +156,7 @@ fun SettingsScreen(navController: NavController,
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { navController.navigate(AppScreens.SellScreen.route) }
+                    onClick = { showSellDialog = true }
                 )
                 // Boton de Categorias
                 NavigationBarItem(
@@ -236,6 +241,14 @@ fun SettingsScreen(navController: NavController,
                 }
             }
         }
+    }
+    // Muestra el diálogo de conversión a vendedor
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = hiltViewModel<SellViewModel>(),
+            onDismiss = { showSellDialog = false }
+        )
     }
 }
 
