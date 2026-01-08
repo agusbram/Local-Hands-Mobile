@@ -41,25 +41,54 @@ import com.undef.localhandsbrambillafunes.data.model.ProductListItem
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.setValue
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 /**
- * Pantalla principal de la aplicación que muestra una interfaz completa con barra superior,
- * contenido principal y barra de navegación inferior.
+ * Pantalla principal de la aplicación.
  *
- * Esta pantalla implementa el patrón Material Design 3 usando Scaffold como contenedor principal.
+ * Esta pantalla actúa como punto de entrada principal para el usuario y
+ * presenta una interfaz completa compuesta por:
+ * - Barra superior (TopAppBar)
+ * - Contenido principal con listado de productos
+ * - Barra de navegación inferior (NavigationBar)
+ *
+ * Implementa el patrón Material Design 3 utilizando [Scaffold] como
+ * contenedor estructural.
+ *
+ * @param navController Controlador de navegación para manejar el flujo entre pantallas.
+ * @param productViewModel ViewModel encargado de proveer el listado de productos.
+ * @param sellViewModel ViewModel encargado de gestionar la lógica de conversión a vendedor.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>()) {
+fun HomeScreen(navController: NavController,
+               productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+               sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
+) {
+    // Estado reactivo que contiene la lista de productos
     val products by productViewModel.products.collectAsState()
+
+    // Controla la visualización del flujo de conversión a vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
 
     /**
      * Scaffold es el componente base que proporciona la estructura básica de la pantalla
      * con áreas para barra superior, contenido principal y barra inferior.
      */
     Scaffold(
-        // Barra Superior con título y acciones
+        /**
+         * Barra superior de la aplicación.
+         *
+         * Incluye:
+         * - Logo de la aplicación
+         * - Título
+         * - Accesos directos a búsqueda, perfil y configuración
+         */
         topBar = {
             /**
              * TopAppBar proporciona la barra superior con título y acciones.
@@ -169,8 +198,8 @@ fun HomeScreen(navController: NavController, productViewModel: ProductViewModel 
                     icon = { Icon(Icons.Filled.Shop, contentDescription = "Vender") },
                     label = { Text("Vender")},
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { navController.navigate(route = AppScreens.SellScreen.route) }
+                    selected = false,
+                    onClick = { showSellDialog = true }
                 )
 
                 NavigationBarItem(
@@ -183,6 +212,11 @@ fun HomeScreen(navController: NavController, productViewModel: ProductViewModel 
             }
         }
     ) { paddingValues ->
+        /**
+         * Contenido principal de la pantalla.
+         *
+         * Muestra un listado vertical de productos destacados.
+         */
         LazyColumn(
             state = rememberLazyListState(),
             modifier = Modifier
@@ -206,4 +240,17 @@ fun HomeScreen(navController: NavController, productViewModel: ProductViewModel 
             }
         }
     }
+
+    /**
+     * Flujo de navegación hacia la pantalla de venta.
+     */
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = sellViewModel,
+            onDismiss = { showSellDialog = false }
+        )
+    }
+
 }
+

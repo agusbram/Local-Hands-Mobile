@@ -3,6 +3,7 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.User
+import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.repository.AuthRepository
 import com.undef.localhandsbrambillafunes.service.EmailService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,14 +14,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Estado UI para registro
+ * Estado de UI para el flujo de registro de usuarios.
  *
- * @property isLoading Indica operación en curso
- * @property isSuccess Indica registro exitoso
- * @property errorMessage Mensaje de error
- * @property needsVerification Indica si se requiere verificación
- * @property userEmail Email del usuario registrado
- * @property tempUser Usuario temporal durante verificación
+ * Representa de forma inmutable el estado actual del proceso de registro,
+ * permitiendo a la UI reaccionar de manera declarativa ante los cambios.
+ *
+ * @property isLoading Indica si hay una operación en curso.
+ * @property isSuccess Indica si el registro se completó correctamente.
+ * @property errorMessage Mensaje de error en caso de fallo.
+ * @property needsVerification Indica si se requiere validación por código.
+ * @property userEmail Email del usuario en proceso de registro.
+ * @property tempUser Usuario almacenado temporalmente hasta completar la verificación.
  */
 data class RegisterState(
     val isLoading: Boolean = false,
@@ -32,41 +36,61 @@ data class RegisterState(
 )
 
 /**
- * ViewModel para registro de usuarios con verificación por email
+ * ViewModel encargado del registro de usuarios con verificación por correo electrónico.
  *
- * @property authRepository Repositorio de autenticación
- * @property emailService Servicio de envío de emails
+ * Coordina la lógica de negocio entre la capa de UI y los repositorios,
+ * manejando estado reactivo mediante [StateFlow].
  *
- * @method prepareRegistration Pre-valida y envía código de verificación
- * @method sendVerificationCode Genera y envía código al email
- * @method verifyCode Valida código ingresado por usuario
+ * @property authRepository Repositorio de autenticación y persistencia.
+ * @property emailService Servicio responsable del envío de emails.
  */
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val emailService: EmailService
 ) : ViewModel() {
-
+    /**
+     * Estado interno mutable del ViewModel.
+     */
     private val _uiState = MutableStateFlow(RegisterState())
+
+    /**
+     * Estado expuesto a la UI de forma inmutable.
+     */
     val uiState: StateFlow<RegisterState> = _uiState.asStateFlow()
 
-    private var tempUser: User? = null  // Almacenar usuario temporalmente
+    /**
+     * Usuario temporal almacenado hasta completar la verificación por email.
+     */
+    private var tempUser: User? = null
 
-    private var verificationCode: String? = null  // Almacenar el código generado
+    /**
+     * Código de verificación generado y almacenado en memoria.
+     */
+    private var verificationCode: String? = null
 
-    // Para menjar los reintentos de codigo de verificacion
+    /**
+     * Contador de intentos fallidos de verificación.
+     */
     private var verificationAttempts = 0
+
+    /**
+     * Cantidad máxima de intentos permitidos para ingresar el código.
+     */
     private val MAX_ATTEMPTS = 3
 
     /**
-     * Prepara registro: verifica email y almacena usuario temporal
+     * Prepara el registro del usuario.
      *
-     * @param name Nombre usuario
-     * @param lastName Apellido usuario
-     * @param email Email usuario
-     * @param password Contraseña
-     * @param phone Teléfono
-     * @param address Dirección
+     * Verifica si el email ya se encuentra registrado y, en caso contrario,
+     * almacena el usuario temporalmente y envía un código de verificación.
+     *
+     * @param name Nombre del usuario.
+     * @param lastName Apellido del usuario.
+     * @param email Email del usuario.
+     * @param password Contraseña.
+     * @param phone Teléfono de contacto.
+     * @param address Dirección del usuario.
      */
     fun prepareRegistration(
         name: String,
@@ -79,7 +103,7 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            // 1. Verificar si el email ya existe
+            // Verificar si el email ya existe
             authRepository.isEmailExists(email)
                 .onSuccess { exists ->
                     if (exists) {
@@ -89,7 +113,7 @@ class RegisterViewModel @Inject constructor(
                             errorMessage = "El email ya está registrado"
                         )
                     } else {
-                        // 2. Guardar usuario temporalmente (NO en base de datos)
+                        // Guardar usuario temporalmente (NO en base de datos)
                         tempUser = User(
                             name = name,
                             lastName = lastName,
@@ -97,10 +121,11 @@ class RegisterViewModel @Inject constructor(
                             password = password,
                             phone = phone,
                             address = address,
-                            isEmailVerified = false
+                            isEmailVerified = false,
+                            role = UserRole.CLIENT
                         )
 
-                        // 3. Enviar código de verificación
+                        // Enviar código de verificación
                         sendVerificationCode(email)
                     }
                 }
@@ -115,9 +140,9 @@ class RegisterViewModel @Inject constructor(
     }
 
     /**
-     * Envía código de verificación por email
+     * Genera y envía un código de verificación al email del usuario.
      *
-     * @param email Email destino
+     * @param email Dirección de correo destino.
      */
     fun sendVerificationCode(email: String) {
         viewModelScope.launch {
@@ -141,10 +166,13 @@ class RegisterViewModel @Inject constructor(
     }
 
     /**
-     * Verifica código ingresado por usuario
+     * Verifica el código ingresado por el usuario.
      *
-     * @param email Email del usuario
-     * @param code Código ingresado
+     * Si el código es correcto, registra definitivamente al usuario.
+     * En caso contrario, controla la cantidad de intentos permitidos.
+     *
+     * @param email Email del usuario.
+     * @param code Código ingresado.
      */
     fun verifyCode(email: String, code: String) {
         viewModelScope.launch {
@@ -195,16 +223,18 @@ class RegisterViewModel @Inject constructor(
     }
 
     /**
-     * Limpia estado y datos temporales
+     * Restaura el estado inicial del ViewModel y limpia datos temporales.
      */
     fun clearState() {
         _uiState.value = RegisterState()
         // Limpiar datos temporales
-        tempUser = null  // Limpiar usuario temporal
+        tempUser = null
     }
 
     /**
-     * Limpia tabla de usuarios (SOLO PRUEBAS)
+     * Elimina todos los usuarios almacenados.
+     *
+     * Método destinado exclusivamente a entornos de prueba.
      */
     fun clearUsers() {
         viewModelScope.launch {

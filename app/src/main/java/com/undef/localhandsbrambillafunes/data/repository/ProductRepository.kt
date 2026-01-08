@@ -1,11 +1,10 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
-import androidx.compose.runtime.MutableState
 import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
 import com.undef.localhandsbrambillafunes.data.dao.ProductDao
 import com.undef.localhandsbrambillafunes.data.entity.Product
-import com.undef.localhandsbrambillafunes.data.db.AppDatabase
 import com.undef.localhandsbrambillafunes.data.entity.Favorite
+import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -30,12 +29,50 @@ import javax.inject.Inject
  * --> Facilita pruebas unitarias porque se puede simular fácilmente.
  *
  * --> Mejora la escalabilidad y mantenibilidad del código.
- * @param AppDatabase base de datos de productos.
+ *
+ * @property productDao Acceso local a los productos (Room).
+ * @property favoriteDao Acceso local a los productos favoritos (Room).
+ * @property api Servicio que interactúa con la API remota de productos.
  * */
 class ProductRepository @Inject constructor(
     private val productDao: ProductDao,
     private val favoriteDao: FavoriteDao,
+    private val api: ApiService
     ) {
+    /**
+     * Obtiene todos los productos disponibles desde la API remota.
+     *
+     * Esta función realiza una solicitud HTTP GET al endpoint `/products`
+     * a través de Retrofit, devolviendo una lista de productos en formato JSON.
+     *
+     * @return Lista de [Product] obtenidos del servidor.
+     * @throws IOException si hay errores de red.
+     */
+    suspend fun getProducts() = api.getProducts()
+
+    /**
+     * Obtiene los productos publicados por un usuario emprendedor específico.
+     *
+     * Esta función consulta el endpoint `/products` agregando el parámetro
+     * de consulta `ownerId` para filtrar por productos del dueño.
+     *
+     * @param ownerId ID del usuario que publicó los productos.
+     * @return Lista de [Product] asociados al dueño especificado.
+     * @throws IOException si la red falla o la API devuelve un error.
+     */
+    suspend fun getProductsByOwnerId(ownerId: Int?) = api.getProductsByOwner(ownerId)
+
+    /**
+     * Envía un nuevo producto al servidor para que sea persistido.
+     *
+     * Esta función realiza una solicitud HTTP POST al endpoint `/products`
+     * enviando los datos del producto en formato JSON como cuerpo de la petición.
+     *
+     * @param product Instancia de [Product] que se desea agregar al backend.
+     * @return El producto creado con su ID asignado por el servidor.
+     * @throws IOException en caso de fallo en la conexión o error de la API.
+     */
+    suspend fun addProduct(product: Product) = api.addProduct(product)
 
     /**
      * Obtiene todos los productos como un flujo reactivo.
@@ -176,6 +213,6 @@ class ProductRepository @Inject constructor(
      * @param productId ID del producto a eliminar de la lista de favoritos.
      */
     suspend fun removeFavorite(userId: Int, productId: Int) = withContext(Dispatchers.IO) {
-        favoriteDao.removeFavoriteByUserAndProduct(userId, productId)
+        favoriteDao.removeFavByUserAndProduct(userId, productId)
     }
 }

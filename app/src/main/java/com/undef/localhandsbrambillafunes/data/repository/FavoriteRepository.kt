@@ -39,7 +39,7 @@ class FavoriteRepository @Inject constructor(
         val currentUserId = authRepository.getCurrentUserId()
             ?: throw NotAuthenticatedException("User not logged in")
 
-        favoriteDao.removeFavoriteByUserAndProduct(currentUserId, productId)
+        favoriteDao.removeFavByUserAndProduct(currentUserId, productId)
     }
 
     /**

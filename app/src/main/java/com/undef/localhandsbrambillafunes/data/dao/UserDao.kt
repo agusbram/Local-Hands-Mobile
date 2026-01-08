@@ -2,6 +2,7 @@ package com.undef.localhandsbrambillafunes.data.dao
 
 import androidx.room.*
 import com.undef.localhandsbrambillafunes.data.entity.User
+import kotlinx.coroutines.flow.Flow
 
 
 /**
@@ -23,18 +24,8 @@ interface UserDao {
      * @param email Email del usuario
      * @return Usuario o null si no existe
      */
-    @Query("SELECT * FROM users WHERE email = :email")
+    @Query("SELECT * FROM UserEntity WHERE email = :email")
     suspend fun getUserByEmail(email: String): User?
-
-    /**
-     * Autentica usuario por email y contraseña (OBSOLETO - usar verificación con hash)
-     *
-     * @param email Email del usuario
-     * @param password Contraseña en texto plano
-     * @return Usuario autenticado o null
-     */
-    @Query("SELECT * FROM users WHERE email = :email AND password = :password")
-    suspend fun authenticateUser(email: String, password: String): User?
 
     /**
      * Inserta nuevo usuario
@@ -58,7 +49,7 @@ interface UserDao {
      *
      * @param email Email a verificar
      */
-    @Query("UPDATE users SET isEmailVerified = 1, verificationCode = NULL WHERE email = :email")
+    @Query("UPDATE UserEntity SET isEmailVerified = 1, verificationCode = NULL WHERE email = :email")
     suspend fun verifyEmail(email: String)
 
     /**
@@ -67,7 +58,7 @@ interface UserDao {
      * @param email Email del usuario
      * @param code Nuevo código de verificación
      */
-    @Query("UPDATE users SET verificationCode = :code WHERE email = :email")
+    @Query("UPDATE UserEntity SET verificationCode = :code WHERE email = :email")
     suspend fun updateVerificationCode(email: String, code: String)
 
     /**
@@ -77,7 +68,7 @@ interface UserDao {
      * @param code Código a verificar
      * @return Usuario si código válido, null si no
      */
-    @Query("SELECT * FROM users WHERE email = :email AND verificationCode = :code COLLATE NOCASE LIMIT 1")
+    @Query("SELECT * FROM UserEntity WHERE email = :email AND verificationCode = :code COLLATE NOCASE LIMIT 1")
     suspend fun verifyCode(email: String, code: String): User?
 
     /**
@@ -87,7 +78,7 @@ interface UserDao {
      * @param newPassword Nueva contraseña (debe estar hasheada)
      * @return Número de filas actualizadas
      */
-    @Query("UPDATE users SET password = :newPassword WHERE email = :email COLLATE NOCASE")
+    @Query("UPDATE UserEntity SET password = :newPassword WHERE email = :email COLLATE NOCASE")
     suspend fun updatePassword(email: String, newPassword: String): Int
 
     /**
@@ -96,7 +87,7 @@ interface UserDao {
      * @param email Email a verificar
      * @return 1 si existe, 0 si no
      */
-    @Query("SELECT COUNT(*) FROM users WHERE email = :email")
+    @Query("SELECT COUNT(*) FROM UserEntity WHERE email = :email")
     suspend fun isEmailExists(email: String): Int
 
     /**
@@ -105,12 +96,53 @@ interface UserDao {
      * @param id ID del usuario.
      * @return Instancia de [User], o `null` si no se encuentra.
      */
-    @Query("SELECT * FROM users WHERE id = :id")
-    suspend fun getUserById(id: Int): User?
+    @Query("SELECT * FROM UserEntity WHERE id = :id")
+    suspend fun getUserById(id: Int): User
+
+    /**
+     * Obtiene un usuario por su ID.
+     * Es necesario el Flow para que la UI reacciones a los cambios en la BD en tiempo real
+     *
+     * @param id ID del usuario.
+     * @return Instancia Flow de [User], o `null` si no se encuentra.
+     */
+    @Query("SELECT * FROM UserEntity WHERE id = :id")
+    fun getUserByIdFlow(id: Int): Flow<User?>
+
+    /**
+     * Obtiene un usuario por su identificador mediante una consulta única
+     * (no reactiva).
+     *
+     * Es especialmente útil para:
+     * - Validaciones puntuales (por ejemplo, verificación de contraseña).
+     * - Operaciones internas de lógica de negocio.
+     * - Casos donde no se requiere reactividad en la UI.
+     *
+     * @param userId Identificador único del usuario a buscar.
+     * @return Instancia de [User] si existe un registro con el ID indicado,
+     * o `null` si no se encuentra ningún usuario.
+     */
+    @Query("SELECT * FROM UserEntity WHERE id = :userId")
+    suspend fun getUserByIdNonFlow(userId: Int): User?
 
     /**
      * Elimina todos los usuarios (SOLO PARA PRUEBAS)
      */
-    @Query("DELETE FROM users")
+    @Query("DELETE FROM UserEntity")
     suspend fun deleteAllUsers()
+
+    /**
+     * Elimina un usuario de la base de datos local.
+     *
+     * Este método realiza una operación de borrado sobre la entidad [User]
+     * utilizando Room, eliminando de forma permanente el registro correspondiente
+     * de la tabla de usuarios.
+     *
+     * Debe utilizarse cuando la cuenta del usuario ha sido eliminada del sistema
+     * o cuando ya no se requiere conservar su información local.
+     *
+     * @param user Instancia de [User] que se desea eliminar.
+     */
+    @Delete
+    suspend fun deleteUser(user: User)
 }

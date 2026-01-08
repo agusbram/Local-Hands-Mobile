@@ -223,6 +223,7 @@ fun EditProductScreen(
                             productViewModel.updateProduct(entity)
                         } else {
                             productViewModel.addProduct(entity)
+                            productViewModel.addProductByApi(entity)
                         }
                         navController.popBackStack() // Vuelve a la lista
                     },

@@ -25,7 +25,7 @@ interface FavoriteDao {
     /**
      * Inserta un nuevo registro de favorito en la base de datos.
      *
-     * Si ya existe un favorito con la misma combinación de `userId` y `productId`,
+     * Si ya existe un favorito con la misma combinación de `Id` y `productId`,
      * se reemplazará gracias a la política `OnConflictStrategy.REPLACE`.
      *
      * @param favorite Objeto que representa la relación entre el usuario y el producto favorito.
@@ -41,20 +41,20 @@ interface FavoriteDao {
      *
      * Es una operación suspendida y debe llamarse dentro de una corrutina o de otra función `suspend`.
      *
-     * @param userId El identificador del usuario asociado al producto favorito.
+     * @param Id El identificador del usuario asociado al producto favorito.
      * @param productId El identificador del producto que se desea eliminar de los favoritos.
      */
-    @Query("DELETE FROM favoriteentity WHERE userId = :userId AND productId = :productId")
-    suspend fun removeFavoriteByUserAndProduct(userId: Int, productId: Int)
+    @Query("DELETE FROM favoriteentity WHERE userId = :id AND productId = :productId")
+    suspend fun removeFavByUserAndProduct(id: Int, productId: Int)
 
     /**
      * Recupera todos los productos que han sido marcados como favoritos por un usuario determinado.
      *
      * Esta consulta realiza un `INNER JOIN` entre la tabla de productos (`ProductEntity`)
      * y la tabla de favoritos (`FavoriteEntity`) para retornar únicamente los productos asociados
-     * al `userId` especificado.
+     * al `Id` especificado.
      *
-     * @param userId ID del usuario del cual se desean obtener los productos favoritos.
+     * @param Id ID del usuario del cual se desean obtener los productos favoritos.
      * @return Un `Flow` reactivo que emite la lista de productos favoritos cada vez que cambia.
      */
     @Query("""

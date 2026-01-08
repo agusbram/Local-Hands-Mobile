@@ -39,11 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.model.ProductListItem
 import com.undef.localhandsbrambillafunes.data.model.ProductProvider
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 /**
  * Composable que implementa la pantalla de búsqueda de productos.
@@ -52,6 +55,9 @@ import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
  */
 @Composable
 fun SearchBarScreen(navController: NavController) {
+    // Estado para manejar el diálogo de convertirse en vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
+
     // Obtiene la lista de productos desde el proveedor de datos
     val products: List<Product> = ProductProvider.products
 
@@ -103,7 +109,7 @@ fun SearchBarScreen(navController: NavController) {
                     label = { Text("Vender")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegación */ }
+                    onClick = { showSellDialog = true }
                 )
 
                 // Botón de Categorías
@@ -112,7 +118,7 @@ fun SearchBarScreen(navController: NavController) {
                     label = { Text("Categorias")},
                     colors = navBarItemColors,
                     selected = true,
-                    onClick = { /* TODO: Implementar navegación */ }
+                    onClick = { navController.navigate(route = AppScreens.CategoryScreen.route) }
                 )
             }
         }
@@ -173,6 +179,14 @@ fun SearchBarScreen(navController: NavController) {
                 }
             }
         }
+    }
+    // Muestra el diálogo de conversión a vendedor
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = hiltViewModel<SellViewModel>(),
+            onDismiss = { showSellDialog = false }
+        )
     }
 }
 

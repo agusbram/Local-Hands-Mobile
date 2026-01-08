@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
 import com.undef.localhandsbrambillafunes.data.dao.ProductDao
+import com.undef.localhandsbrambillafunes.data.dao.SellerDao
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
 import com.undef.localhandsbrambillafunes.data.db.AppDatabase
 import dagger.Module
@@ -92,4 +93,17 @@ object DatabaseModule {
      */
     @Provides
     fun provideFavoriteDao(database: AppDatabase): FavoriteDao = database.favoriteDao()
+
+    /**
+     * Proporciona una instancia de [SellerDao] a partir de la instancia de [AppDatabase].
+     *
+     * Esta función está anotada con `@Provides`, lo que indica que forma parte de un módulo de Dagger/Hilt.
+     * Se utiliza para inyectar la dependencia de `SellerDao`, la cual permite acceder a las operaciones
+     * relacionadas con la entidad de emprendedores en la base de datos.
+     *
+     * @param database Instancia de [AppDatabase] que contiene el método de acceso al DAO.
+     * @return Instancia de [SellerDao] proporcionada por la base de datos.
+     */
+    @Provides
+    fun provideSellerDao(database: AppDatabase): SellerDao = database.sellerDao()
 }
