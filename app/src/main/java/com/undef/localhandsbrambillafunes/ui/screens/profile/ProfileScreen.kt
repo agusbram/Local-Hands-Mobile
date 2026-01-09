@@ -1,6 +1,7 @@
 package com.undef.localhandsbrambillafunes.ui.screens.profile
 
 import android.net.Uri
+import android.util.Log
 
 import android.util.Patterns
 import android.widget.Toast
@@ -644,22 +645,24 @@ fun isValidEmail(email: String): Boolean {
 }
 
 /**
- * Valida que un número de teléfono tenga un formato aceptable.
+ * Valida si un número de teléfono es válido según una regla básica de longitud.
  *
- * El proceso de validación:
- * - Elimina todos los caracteres que no sean numéricos
- * - Verifica que la longitud resultante sea válida para Argentina
- *   (entre 10 y 15 dígitos, incluyendo prefijos)
+ * El método elimina espacios en blanco y descarta cualquier carácter
+ * que no sea un dígito, permitiendo ingresar el teléfono con separadores
+ * como espacios, guiones o paréntesis.
  *
- * @param phone Número de teléfono a validar.
- * @return `true` si el número cumple con el formato esperado,
+ * Un número se considera válido si, luego de la normalización,
+ * contiene entre 10 y 15 dígitos inclusive.
+ *
+ * @param phone Cadena que representa el número de teléfono a validar.
+ * @return `true` si el número contiene una cantidad válida de dígitos,
  *         `false` en caso contrario.
  */
 fun isValidPhone(phone: String): Boolean {
-    // Elimina todo lo que no sea número
-    val digitsOnly = phone.filter { it.isDigit() }
+    val digitsOnly = phone
+        .trim()
+        .filter { it.isDigit() }
 
-    // Argentina: mínimo 10 dígitos, máximo 15 (con prefijos)
     return digitsOnly.length in 10..15
 }
 

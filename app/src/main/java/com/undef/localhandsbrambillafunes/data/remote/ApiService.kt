@@ -1,5 +1,6 @@
 package com.undef.localhandsbrambillafunes.data.remote
 
+import com.undef.localhandsbrambillafunes.data.dto.ProductCreateDTO
 import com.undef.localhandsbrambillafunes.data.dto.SellerPatchDTO
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.entity.Seller
@@ -49,6 +50,18 @@ interface ApiService {
     suspend fun addProduct(@Body product: Product): Product
 
     /**
+     * Agrega un nuevo producto al servidor.
+     *
+     * Esta función realiza una solicitud HTTP POST al endpoint `/products`,
+     * enviando un objeto [Product] en el cuerpo de la petición.
+     *
+     * @param product El producto a agregar al servidor.
+     * @return El producto recién creado con su ID generado por el servidor.
+     */
+    @POST("products")
+    suspend fun addProductDTO(@Body productCreateDTO: ProductCreateDTO): Product
+
+    /**
      * Obtiene los productos publicados por un vendedor específico.
      *
      * Esta función realiza una solicitud HTTP GET al endpoint `/products`
@@ -59,6 +72,34 @@ interface ApiService {
      */
     @GET("products")
     suspend fun getProductsByOwner(@Query("ownerId") ownerId: Int?): List<Product>
+
+    /**
+     * Actualiza un producto existente en el backend.
+     *
+     * La actualización reemplaza los valores actuales del producto por los
+     * proporcionados en el cuerpo de la petición.
+     *
+     * @param id Identificador único del producto que se desea actualizar.
+     * @param product Objeto [Product] con los datos actualizados del producto.
+     * @return El objeto [Product] actualizado, tal como lo devuelve el backend.
+     */
+    @PUT("products/{id}")
+    suspend fun updateProduct(@Path("id") id: Int, @Body product: Product): Product
+
+
+    /**
+     * Elimina un producto existente del backend.
+     *
+     * La operación no devuelve contenido en el cuerpo de la respuesta.
+     * El estado de la eliminación debe verificarse a través del código
+     * HTTP contenido en la respuesta.
+     *
+     * @param id Identificador único del producto que se desea eliminar.
+     * @return Un objeto [Response] sin cuerpo (`Unit`) que permite
+     *         inspeccionar el resultado de la operación (códigos HTTP).
+     */
+    @DELETE("products/{id}")
+    suspend fun deleteProduct(@Path("id") id: Int): Response<Unit>
 
     /**
      * Crea un nuevo vendedor en el servidor.
