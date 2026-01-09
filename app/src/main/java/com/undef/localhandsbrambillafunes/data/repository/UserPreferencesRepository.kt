@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,6 +49,67 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
          * Clave utilizada para almacenar el ID del usuario actualmente logueado.
          */
         val USER_ID = intPreferencesKey("user_id")
+
+        /**
+         * Clave utilizada para almacenar el emprendimiento del vendedor actualmente logueado.
+         */
+        val USER_ENTREPRENEURSHIP = stringPreferencesKey("user_entrepreneurship")
+    }
+
+    /**
+     * Flujo reactivo que expone el nombre del emprendimiento del usuario almacenado en DataStore.
+     *
+     * Este Flow emite un nuevo valor cada vez que cambia la preferencia
+     * [PreferencesKeys.USER_ENTREPRENEURSHIP]. Si no existe un valor almacenado,
+     * se devuelve una cadena vacía.
+     *
+     * Resulta útil para observar cambios en tiempo real desde ViewModels o UI
+     * (por ejemplo, con collectAsState en Jetpack Compose).
+     */
+    val userEntrepreneurshipFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.USER_ENTREPRENEURSHIP] ?: ""
+        }
+
+    /**
+     * Guarda o actualiza el nombre del emprendimiento del usuario en DataStore.
+     *
+     * @param entrepreneurship Nombre del emprendimiento a persistir.
+     */
+    suspend fun saveUserEntrepreneurship(entrepreneurship: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USER_ENTREPRENEURSHIP] = entrepreneurship
+        }
+    }
+
+    /**
+     * Obtiene el nombre del emprendimiento del usuario de forma síncrona
+     * (sin exponer un Flow).
+     *
+     * Este método es útil en casos puntuales donde no se desea observar cambios
+     * reactivos, sino obtener el valor una sola vez.
+     *
+     * @return El nombre del emprendimiento almacenado o una cadena vacía
+     * si no existe.
+     */
+    suspend fun getUserEntrepreneurship(): String {
+        return context.dataStore.data
+            .map { preferences ->
+                preferences[PreferencesKeys.USER_ENTREPRENEURSHIP] ?: ""
+            }
+            .firstOrNull() ?: ""
+    }
+
+    /**
+     * Elimina el nombre del emprendimiento del usuario almacenado en DataStore.
+     *
+     * Normalmente se utiliza en procesos de cierre de sesión o limpieza
+     * de datos del usuario.
+     */
+    suspend fun clearUserEntrepreneurship() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferencesKeys.USER_ENTREPRENEURSHIP)
+        }
     }
 
     /**

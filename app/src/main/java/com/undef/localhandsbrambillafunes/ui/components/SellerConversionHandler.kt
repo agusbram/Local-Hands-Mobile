@@ -78,6 +78,9 @@ fun SellerConversionHandler(
      * Verifica el estado del usuario al iniciar el flujo.
      */
     LaunchedEffect(Unit) {
+        // Resetear el nombre al empezar
+        sellViewModel.resetConversionState()
+
         // Verificación rápida inicial
         val isAlreadySeller = sellViewModel.isUserAlreadySeller()
 
