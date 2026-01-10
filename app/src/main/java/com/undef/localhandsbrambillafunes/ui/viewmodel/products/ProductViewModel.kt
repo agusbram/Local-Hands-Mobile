@@ -4,46 +4,38 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
-import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * 🧠 ViewModel — Encargado de gestionar y exponer datos a la capa de UI.
- *
- * ## Función principal:
- * Mantiene y proporciona los datos necesarios para la interfaz de usuario, incluso durante
- * cambios de configuración como rotaciones de pantalla.
- *
- * ## ¿Para qué sirve?
- * - 🔄 Recupera datos desde el `Repository` y los expone a la UI mediante `State`, `LiveData` o `StateFlow`.
- * - 🎯 Contiene la lógica de presentación (formateo, validación, control de estado).
- * - 🚫 No contiene lógica de negocio ni de acceso directo a la base de datos.
- * - 📦 Actúa como una capa intermedia que separa la UI de la lógica de datos, promoviendo una arquitectura limpia y mantenible.
- *
- * ## Beneficios:
- * - Mejora la organización del código.
- * - Facilita la reutilización y testeo.
- * - Hace que la UI sea más declarativa y reactiva.
- */
 @HiltViewModel
 class ProductViewModel @Inject constructor(
     private val repository: ProductRepository,
 ) : ViewModel() {
-    // Estado interno y externo que expone la lista de productos
-    private val _products = MutableStateFlow<List<Product>>(emptyList())
 
     /**
-     * Estado observable de productos que expone una lista de productos a la UI.
+     * Flujo de estado que expone la lista completa de productos desde la base de datos local.
      *
-     * Se actualiza cuando se cargan productos desde la API.
+     * Se conecta directamente al Flow del repositorio, lo que significa que cualquier cambio
+     * en la tabla de productos (inserción, actualización, eliminación) se reflejará
+     * automáticamente en la UI que observe este StateFlow.
+     *
+     * - `stateIn` convierte el Flow "frío" en un StateFlow "caliente".
+     * - `viewModelScope`: El flujo vive mientras viva el ViewModel.
+     * - `SharingStarted.WhileSubscribed(5000)`: El flujo del repositorio se activa solo cuando
+     *   hay un observador en la UI, y se detiene 5 segundos después de que el último observador
+     *   desaparece, ahorrando recursos.
+     * - `emptyList()`: El valor inicial del StateFlow mientras se espera la primera emisión de datos.
      */
-    val products: StateFlow<List<Product>> = _products
+    val products: StateFlow<List<Product>> = repository.getAllProducts()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     /**
      * Carga los productos asociados a un dueño específico utilizando su `ownerId`.
@@ -55,7 +47,10 @@ class ProductViewModel @Inject constructor(
      */
     fun loadProductsByOwner(ownerId: Int?) {
         viewModelScope.launch {
-            _products.value = repository.getProductsByOwnerId(ownerId)
+            // Nota: Esta función parece obtener datos de la API, no de la BD local.
+            // Si la intención es mostrar productos de la API, esta lógica es correcta,
+            // pero no afectará al StateFlow `products` que lee de la BD local.
+            // Considerar si se necesita un StateFlow separado para los productos de la API.
         }
     }
 
@@ -155,9 +150,9 @@ class ProductViewModel @Inject constructor(
      * @param ownerId ID del usuario del cual se desean obtener los productos.
      * @return Un [StateFlow] que contiene una lista de productos publicados por el usuario.
      */
-        fun getMyProducts(ownerId: Int): StateFlow<List<Product>> =
-            repository.getProductsByOwner(ownerId)
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun getMyProducts(ownerId: Int): StateFlow<List<Product>> =
+        repository.getProductsByOwner(ownerId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * Obtiene la lista de productos marcados como favoritos por el usuario.
