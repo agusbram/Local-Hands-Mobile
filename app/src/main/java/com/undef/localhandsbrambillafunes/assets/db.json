@@ -1,34 +1,42 @@
 {
   "sellers": [
     {
-      "id": "2",
-      "address": "asdasdasd",
+      "id": "1",
+      "address": "Avenida Fuerza Aerea",
       "email": "truktekalert@gmail.com",
-      "entrepreneurship": "zxzxzx",
-      "lastname": "wqewqewqe",
-      "name": "wqewqewqe",
-      "phone": "1232131231",
-      "photoUrl": "/data/user/0/com.undef.localhandsbrambillafunes/files/profile_images/profile_d80e3c44-d7c4-4b6c-9669-da087e719f3b.jpg"
-    },
-    {
-      "id": "3",
-      "address": "asdasdsad",
-      "email": "agustinbram@gmail.com",
-      "entrepreneurship": "nbnbn",
-      "lastname": "zxzxzx",
-      "name": "xzxzxzx",
-      "phone": "1231231231",
-      "photoUrl": "/data/user/0/com.undef.localhandsbrambillafunes/files/profile_images/profile_411b98f0-ca52-4e62-adab-7fe725142437.jpg"
-    },
-    {
-      "id": 4,
-      "address": "nmnmnmnm",
-      "email": "abrambilla804@alumnos.iua.edu.ar",
-      "entrepreneurship": "ANDUVO",
-      "lastname": "nmnmnmn",
-      "name": "mnmnmn",
-      "phone": "1234567890"
+      "entrepreneurship": "Lo de Agustinesco",
+      "lastname": "Brambi",
+      "name": "Agustincito",
+      "phone": "3541207081",
+      "photoUrl": "/data/user/0/com.undef.localhandsbrambillafunes/files/profile_images/profile_dad7874b-584f-4d93-881f-90c31d65d32c.jpg"
     }
   ],
-  "products": []
+  "products": [
+    {
+      "category": "Textiles",
+      "description": "Descripcion UNO",
+      "id": "1",
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767988638485.jpg"
+      ],
+      "location": "San Marcos Sierras",
+      "name": "Producto UNO",
+      "ownerId": 1,
+      "price": 456,
+      "producer": "Lo de Agustinesco"
+    },
+    {
+      "category": "Alimentos",
+      "description": "Descripcion DOS",
+      "id": "2",
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767988708782.jpg"
+      ],
+      "location": "Capilla del Monte",
+      "name": "Producto DOS",
+      "ownerId": 1,
+      "price": 789,
+      "producer": "Lo de Agustinesco"
+    }
+  ]
 }

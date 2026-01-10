@@ -17,7 +17,7 @@ import javax.inject.Inject
  */
 class FavoriteRepository @Inject constructor(
     private val favoriteDao: FavoriteDao,
-    private val authRepository: AuthRepository // Añadir dependencia
+    private val authRepository: AuthRepository
 ) {
 
     /**

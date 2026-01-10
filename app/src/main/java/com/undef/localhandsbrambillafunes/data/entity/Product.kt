@@ -29,7 +29,7 @@ import com.undef.localhandsbrambillafunes.data.db.Converters
 @Entity(tableName = "ProductEntity")
 @TypeConverters(Converters::class)
 data class Product(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0, // CORREGIDO: 0 para autogeneración correcta
+    @PrimaryKey(autoGenerate = true) val id: Int = 0, // Esta es la versión correcta y más flexible
     val name: String,
     val description: String,
     val producer: String,

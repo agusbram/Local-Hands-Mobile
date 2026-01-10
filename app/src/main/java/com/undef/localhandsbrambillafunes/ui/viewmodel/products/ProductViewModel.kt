@@ -17,18 +17,8 @@ class ProductViewModel @Inject constructor(
 ) : ViewModel() {
 
     /**
-     * Flujo de estado que expone la lista completa de productos desde la base de datos local.
-     *
-     * Se conecta directamente al Flow del repositorio, lo que significa que cualquier cambio
-     * en la tabla de productos (inserción, actualización, eliminación) se reflejará
-     * automáticamente en la UI que observe este StateFlow.
-     *
-     * - `stateIn` convierte el Flow "frío" en un StateFlow "caliente".
-     * - `viewModelScope`: El flujo vive mientras viva el ViewModel.
-     * - `SharingStarted.WhileSubscribed(5000)`: El flujo del repositorio se activa solo cuando
-     *   hay un observador en la UI, y se detiene 5 segundos después de que el último observador
-     *   desaparece, ahorrando recursos.
-     * - `emptyList()`: El valor inicial del StateFlow mientras se espera la primera emisión de datos.
+     * Flujo de estado que expone la lista completa de productos desde la base de datos local (Room).
+     * Esta es la ÚNICA fuente de verdad para la UI.
      */
     val products: StateFlow<List<Product>> = repository.getAllProducts()
         .stateIn(
@@ -36,6 +26,31 @@ class ProductViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    init {
+        // Cuando el ViewModel se crea, lanzamos la carga de datos desde la API.
+        fetchAndCacheProducts()
+    }
+
+    /**
+     * Obtiene los productos desde la API remota (usando Retrofit) y los guarda
+     * en la base de datos local (Room). Gracias al flujo reactivo de `products`,
+     * la UI se actualizará automáticamente una vez que los datos se guarden en Room.
+     */
+    fun fetchAndCacheProducts() {
+        viewModelScope.launch {
+            try {
+                // 1. Llama a la API a través del repositorio
+                val remoteProducts = repository.getProducts()
+                // 2. Inserta la respuesta en la base de datos local
+                repository.insertAll(remoteProducts)
+            } catch (e: Exception) {
+                // TODO: Manejar el error (ej. mostrar un Toast, log, etc.)
+                // Por ahora, si falla la red, la app seguirá mostrando los datos
+                // que ya tenía en la base de datos, lo cual es genial.
+            }
+        }
+    }
 
     /**
      * Carga los productos asociados a un dueño específico utilizando su `ownerId`.
