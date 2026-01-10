@@ -48,61 +48,24 @@ import androidx.compose.runtime.setValue
 import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
-/**
- * Pantalla principal de la aplicación.
- *
- * Esta pantalla actúa como punto de entrada principal para el usuario y
- * presenta una interfaz completa compuesta por:
- * - Barra superior (TopAppBar)
- * - Contenido principal con listado de productos
- * - Barra de navegación inferior (NavigationBar)
- *
- * Implementa el patrón Material Design 3 utilizando [Scaffold] como
- * contenedor estructural.
- *
- * @param navController Controlador de navegación para manejar el flujo entre pantallas.
- * @param productViewModel ViewModel encargado de proveer el listado de productos.
- * @param sellViewModel ViewModel encargado de gestionar la lógica de conversión a vendedor.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController,
-               productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
-               sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
+fun HomeScreen(
+    navController: NavController,
+    productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
 ) {
-    // Estado reactivo que contiene la lista de productos
     val products by productViewModel.products.collectAsState()
 
-    // Controla la visualización del flujo de conversión a vendedor
     var showSellDialog by remember { mutableStateOf(false) }
 
-    /**
-     * Scaffold es el componente base que proporciona la estructura básica de la pantalla
-     * con áreas para barra superior, contenido principal y barra inferior.
-     */
     Scaffold(
-        /**
-         * Barra superior de la aplicación.
-         *
-         * Incluye:
-         * - Logo de la aplicación
-         * - Título
-         * - Accesos directos a búsqueda, perfil y configuración
-         */
         topBar = {
-            /**
-             * TopAppBar proporciona la barra superior con título y acciones.
-             * En este caso incluye el logo de la marca y botones de acción.
-             */
             TopAppBar(
-                // Logo de la Marca
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        /**
-                         * Logo de la aplicación con descripción para accesibilidad
-                         */
                         Image(
                             painter = painterResource(id = R.drawable.localhandslogo),
                             contentDescription = "Logo principal de la aplicación",
@@ -110,93 +73,62 @@ fun HomeScreen(navController: NavController,
                                 .size(50.dp)
                                 .padding(end = 8.dp),
                         )
-                        /**
-                         * Título de la aplicación con estilo en negrita
-                         */
                         Text(
                             text = stringResource(R.string.app_name),
                             fontWeight = FontWeight.Bold
                         )
                     }
                 },
-                // Colores personalizados para la barra superior
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF242424),  // Color oscuro para fondo
-                    titleContentColor = Color.White,      // Texto blanco
-                    actionIconContentColor = Color.White  // Iconos blancos
+                    containerColor = Color(0xFF242424),
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 ),
-                // Acciones disponibles en la barra superior
                 actions = {
-                    /**
-                     * Botón de búsqueda que navega a la pantalla de búsqueda
-                     */
                     IconButton(onClick = { navController.navigate(route = AppScreens.SearchBarScreen.route) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Buscar")
                     }
-
-                    /**
-                     * Botón de perfil que navega a la pantalla de perfil
-                     */
                     IconButton(onClick = { navController.navigate(route = AppScreens.ProfileScreen.route) }) {
                         Icon(Icons.Filled.Person, contentDescription = "Sección de Perfil")
                     }
-
-                    /**
-                     * Botón de configuración que navega a la pantalla de ajustes
-                     */
                     IconButton(onClick = { navController.navigate(route = AppScreens.SettingsScreen.route) }) {
                         Icon(Icons.Filled.Settings, contentDescription = "Sección de Settings")
                     }
                 }
             )
         },
-
-        // Barra inferior de navegación
         bottomBar = {
-            /**
-             * NavigationBar proporciona la barra de navegación inferior con iconos y etiquetas
-             */
             NavigationBar(
-                containerColor = Color(0xFF242424),  // Fondo oscuro
-                contentColor = Color.White           // Texto blanco
+                containerColor = Color(0xFF242424),
+                contentColor = Color.White
             ) {
-                /**
-                 * Configuración de colores para los elementos de navegación
-                 */
                 val navBarItemColors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,      // Ícono seleccionado
-                    unselectedIconColor = Color.White,     // Ícono no seleccionado
-                    selectedTextColor = Color.White,      // Texto seleccionado
-                    unselectedTextColor = Color.White,    // Texto no seleccionado
-                    indicatorColor = Color.Transparent     // Sin indicador visual
+                    selectedIconColor = Color.White,
+                    unselectedIconColor = Color.White,
+                    selectedTextColor = Color.White,
+                    unselectedTextColor = Color.White,
+                    indicatorColor = Color.Transparent
                 )
 
-                /**
-                 * Elementos de navegación disponibles:
-                 * - Inicio (actualmente seleccionado)
-                 * - Favoritos
-                 * - Vender
-                 * - Categorías
-                 */
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio")},
+                    label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { /* Implementar navegación a Home */ }
+                    selected = true, // Correcto: esta es la pantalla de inicio
+                    onClick = { /* No hacer nada, ya estamos aquí */ }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
-                    label = { Text("Favoritos")},
+                    label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false, // CORREGIDO
                     onClick = { navController.navigate(route = AppScreens.FavoritesScreen.route) }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Shop, contentDescription = "Vender") },
-                    label = { Text("Vender")},
+                    label = { Text("Vender") },
                     colors = navBarItemColors,
                     selected = false,
                     onClick = { showSellDialog = true }
@@ -204,26 +136,20 @@ fun HomeScreen(navController: NavController,
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Menu, contentDescription = "Categorias") },
-                    label = { Text("Categorías")},
+                    label = { Text("Categorías") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false, // CORREGIDO
                     onClick = { navController.navigate(route = AppScreens.CategoryScreen.route) }
                 )
             }
         }
     ) { paddingValues ->
-        /**
-         * Contenido principal de la pantalla.
-         *
-         * Muestra un listado vertical de productos destacados.
-         */
         LazyColumn(
             state = rememberLazyListState(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
-            // Encabezado de sección
             item {
                 Text(
                     text = "Productos Destacados",
@@ -231,19 +157,15 @@ fun HomeScreen(navController: NavController,
                 )
             }
 
-            // Lista de productos
             items(
                 items = products,
-                key = { it.id } // Clave única para cada producto
+                key = { it.id }
             ) { product ->
                 ProductListItem(product = product, navController = navController)
             }
         }
     }
 
-    /**
-     * Flujo de navegación hacia la pantalla de venta.
-     */
     if (showSellDialog) {
         SellerConversionHandler(
             navController = navController,
@@ -251,6 +173,4 @@ fun HomeScreen(navController: NavController,
             onDismiss = { showSellDialog = false }
         )
     }
-
 }
-
