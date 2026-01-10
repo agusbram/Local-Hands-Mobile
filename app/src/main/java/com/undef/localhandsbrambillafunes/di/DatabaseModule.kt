@@ -21,6 +21,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
@@ -32,151 +33,166 @@ object DatabaseModule {
     @Singleton
     fun provideAppDatabase(
         @ApplicationContext context: Context,
-        callback: Provider<AppDatabaseCallback>
+        callback: AppDatabaseCallback
     ): AppDatabase {
         return Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "app_database"
         )
-            // Solución a la advertencia de deprecación
-            .fallbackToDestructiveMigration(dropAllTables = true)
-            .addCallback(callback.get())
+            .addCallback(callback)
             .build()
     }
 
-    @Provides
     @Singleton
-    fun provideAppDatabaseCallback(
-        db: Provider<AppDatabase>,
-        coroutineScope: CoroutineScope
-    ): AppDatabaseCallback {
-        return AppDatabaseCallback(db, coroutineScope)
-    }
+    class AppDatabaseCallback @Inject constructor(
+        private val userDaoProvider: Provider<UserDao>,
+        private val productDaoProvider: Provider<ProductDao>,
+        private val sellerDaoProvider: Provider<SellerDao> // Inyectamos el SellerDao
+    ) : RoomDatabase.Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+            super.onCreate(db)
+            CoroutineScope(Dispatchers.IO).launch {
+                val userDao = userDaoProvider.get()
+                val productDao = productDaoProvider.get()
+                val sellerDao = sellerDaoProvider.get() // Lo obtenemos aquí
+                populateDatabase(userDao, productDao, sellerDao)
+            }
+        }
 
-    @Provides
-    @Singleton
-    fun provideCoroutineScope(): CoroutineScope {
-        return CoroutineScope(Dispatchers.IO)
-    }
+        private suspend fun populateDatabase(userDao: UserDao, productDao: ProductDao, sellerDao: SellerDao) {
+            // --- CREACIÓN DE USUARIOS Y VENDEDORES ---
 
-    @Provides
-    fun provideUserDao(database: AppDatabase): UserDao = database.userDao()
+            // Vendedor 1
+            val seller1User = User(
+                name = "Carlos",
+                lastName = "Gomez",
+                email = "carlos.gomez@example.com",
+                password = "password123",
+                phone = "1122334455",
+                address = "Av. Siempre Viva 742",
+                role = UserRole.SELLER,
+                photoUrl = "https://picsum.photos/id/1025/200/200"
+            )
+            val seller1Id = userDao.insertUser(seller1User)
 
-    @Provides
-    fun provideProductDao(database: AppDatabase): ProductDao = database.productDao()
+            // Creamos la entidad Seller correspondiente
+            sellerDao.insertSeller(
+                Seller(
+                    id = seller1Id.toInt(),
+                    name = seller1User.name,
+                    lastname = seller1User.lastName,
+                    email = seller1User.email,
+                    phone = seller1User.phone,
+                    photoUrl = seller1User.photoUrl,
+                    entrepreneurship = "El Artesano del Cuero",
+                    address = seller1User.address
+                )
+            )
 
-    @Provides
-    fun provideFavoriteDao(database: AppDatabase): FavoriteDao = database.favoriteDao()
+            // Vendedor 2
+            val seller2User = User(
+                name = "Ana",
+                lastName = "Martinez",
+                email = "ana.martinez@example.com",
+                password = "password123",
+                phone = "5566778899",
+                address = "Calle Falsa 123",
+                role = UserRole.SELLER,
+                photoUrl = "https://picsum.photos/id/1084/200/200"
+            )
+            val seller2Id = userDao.insertUser(seller2User)
 
-    @Provides
-    fun provideSellerDao(database: AppDatabase): SellerDao = database.sellerDao()
-}
+            sellerDao.insertSeller(
+                Seller(
+                    id = seller2Id.toInt(),
+                    name = seller2User.name,
+                    lastname = seller2User.lastName,
+                    email = seller2User.email,
+                    phone = seller2User.phone,
+                    photoUrl = seller2User.photoUrl,
+                    entrepreneurship = "Huerta Orgánica 'La Raíz'",
+                    address = seller2User.address
+                )
+            )
 
-class AppDatabaseCallback(
-    private val database: Provider<AppDatabase>,
-    private val scope: CoroutineScope
-) : RoomDatabase.Callback() {
-    override fun onCreate(db: SupportSQLiteDatabase) {
-        super.onCreate(db)
-        scope.launch {
-            populateDatabase()
+            // Cliente
+            userDao.insertUser(
+                User(
+                    name = "Laura",
+                    lastName = "Perez",
+                    email = "laura.perez@example.com",
+                    password = "password123",
+                    phone = "9988776655",
+                    address = "Boulevard de los Sueños Rotos 45",
+                    role = UserRole.CLIENT
+                )
+            )
+
+            // --- CREACIÓN DE PRODUCTOS ---
+            productDao.addProduct(
+                Product(
+                    name = "Billetera de Cuero Genuino",
+                    description = "Hecha a mano con cuero de vaca de alta calidad. Diseño clásico y duradero.",
+                    producer = "El Artesano del Cuero",
+                    category = "Artesanías",
+                    ownerId = seller1Id.toInt(),
+                    images = listOf("https://picsum.photos/id/24/400/300", "https://picsum.photos/id/40/400/300"),
+                    price = 4500.0,
+                    location = "Córdoba"
+                )
+            )
+
+            productDao.addProduct(
+                Product(
+                    name = "Cinturón de Cuero Trenzado",
+                    description = "Cinturón unisex, ideal para jeans o pantalones de vestir. Hebilla de acero inoxidable.",
+                    producer = "El Artesano del Cuero",
+                    category = "Textiles",
+                    ownerId = seller1Id.toInt(),
+                    images = listOf("https://picsum.photos/id/145/400/300"),
+                    price = 3800.0,
+                    location = "Córdoba"
+                )
+            )
+
+            productDao.addProduct(
+                Product(
+                    name = "Tomates Orgánicos",
+                    description = "Canasta de 1kg de tomates frescos, cultivados sin pesticidas. Sabor 100% natural.",
+                    producer = "Huerta Orgánica 'La Raíz'",
+                    category = "Alimentos",
+                    ownerId = seller2Id.toInt(),
+                    images = listOf("https://picsum.photos/id/1080/400/300", "https://picsum.photos/id/188/400/300"),
+                    price = 800.0,
+                    location = "Rosario"
+                )
+            )
+
+            productDao.addProduct(
+                Product(
+                    name = "Miel Pura de Abeja",
+                    description = "Frasco de 500g de miel pura, cosechada de nuestras propias colmenas.",
+                    producer = "Huerta Orgánica 'La Raíz'",
+                    category = "Alimentos",
+                    ownerId = seller2Id.toInt(),
+                    images = listOf("https://picsum.photos/id/135/400/300"),
+                    price = 1200.0,
+                    location = "Rosario"
+                )
+            )
         }
     }
 
-    private suspend fun populateDatabase() {
-        val userDao = database.get().userDao()
-        val sellerDao = database.get().sellerDao()
-        val productDao = database.get().productDao()
+    @Provides
+    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
 
-        // Limpieza inicial
-        userDao.deleteAllUsers()
-        sellerDao.deleteAll()
+    @Provides
+    fun provideProductDao(db: AppDatabase): ProductDao = db.productDao()
 
-        // --- VENDEDOR 1: Huerta de Ana ---
-        val user1Id = userDao.insertUser(
-            User(
-                name = "Ana",
-                lastName = "García",
-                email = "ana.garcia@huerta.com",
-                password = "hashed_password_1", // En un caso real, esto debería estar hasheado
-                phone = "341-1234567",
-                address = "Av. Siempre Viva 742, Rosario",
-                role = UserRole.SELLER
-            )
-        )
+    @Provides
+    fun provideFavoriteDao(db: AppDatabase): FavoriteDao = db.favoriteDao()
 
-        sellerDao.insertSeller(
-            Seller(
-                id = user1Id.toInt(),
-                name = "Ana",
-                lastname = "García",
-                email = "ana.garcia@huerta.com",
-                phone = "341-1234567",
-                entrepreneurship = "Huerta de Ana",
-                address = "Av. Siempre Viva 742, Rosario"
-            )
-        )
-
-        // --- VENDEDOR 2: Cerámicas de la Ribera ---
-        val user2Id = userDao.insertUser(
-            User(
-                name = "Carlos",
-                lastName = "Pérez",
-                email = "carlos.perez@ceramica.com",
-                password = "hashed_password_2",
-                phone = "3436-987654",
-                address = "Calle Falsa 123, Victoria",
-                role = UserRole.SELLER
-            )
-        )
-
-        sellerDao.insertSeller(
-            Seller(
-                id = user2Id.toInt(),
-                name = "Carlos",
-                lastname = "Pérez",
-                email = "carlos.perez@ceramica.com",
-                phone = "3436-987654",
-                entrepreneurship = "Cerámicas de la Ribera",
-                address = "Calle Falsa 123, Victoria"
-            )
-        )
-
-        // --- PRODUCTOS DE MUESTRA ---
-        productDao.insertAll(
-            listOf(
-                Product(
-                    name = "Canasta de Verduras de Estación",
-                    description = "Una selección de 5kg de las mejores verduras de la semana.",
-                    producer = "Huerta de Ana",
-                    category = "Alimentos",
-                    ownerId = user1Id.toInt(),
-                    images = listOf("https://i.imgur.com/xOJDC5L.jpeg"),
-                    price = 1500.00,
-                    location = "Rosario"
-                ),
-                Product(
-                    name = "Tomates Cherry Orgánicos (500g)",
-                    description = "Dulces y jugosos, cultivados sin pesticidas.",
-                    producer = "Huerta de Ana",
-                    category = "Alimentos",
-                    ownerId = user1Id.toInt(),
-                    images = listOf("https://i.imgur.com/7P1P2uW.jpeg"),
-                    price = 450.00,
-                    location = "Rosario"
-                ),
-                Product(
-                    name = "Tazón de cerámica 'Río'",
-                    description = "Tazón de 300ml esmaltado en tonos azules y marrones.",
-                    producer = "Cerámicas de la Ribera",
-                    category = "Artesanías",
-                    ownerId = user2Id.toInt(),
-                    images = listOf("https://i.imgur.com/HnK2b2e.jpeg"),
-                    price = 1200.00,
-                    location = "Victoria"
-                )
-            )
-        )
-    }
+    @Provides
+    fun provideSellerDao(db: AppDatabase): SellerDao = db.sellerDao()
 }
