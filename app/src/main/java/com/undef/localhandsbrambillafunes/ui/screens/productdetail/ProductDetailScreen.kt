@@ -1,5 +1,8 @@
 package com.undef.localhandsbrambillafunes.ui.screens.productdetail
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,7 +65,15 @@ import com.undef.localhandsbrambillafunes.data.model.FavoriteProducts
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
 import coil.compose.AsyncImage
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.net.toUri
+import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
+import kotlinx.coroutines.flow.firstOrNull
 
 
 /**
@@ -74,8 +85,25 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun ProductDetailScreen(
     navController: NavController,
     product: Product,
-    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>()
+    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>(),
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
+    // Se obtiene el contexto para el Intent
+    val context = LocalContext.current
+
+    // Estado para guardar el email encontrado
+    var sellerEmail by remember { mutableStateOf("Cargando...") }
+
+    // Obtenemos el email del usuario logueado (quien envía el correo)
+    val editState by profileViewModel.editState.collectAsState()
+    val currentUserEmail = editState.email
+
+    // Buscamos el email del vendedor cuando arranca la pantalla
+    LaunchedEffect(product.ownerId) {
+        val seller = sellViewModel.getSellerEmailById(product.ownerId!!).firstOrNull()
+        sellerEmail = seller?.email ?: "Correo no encontrado"
+    }
 
     // Estado para manejar la lista de imágenes del producto
     val productImages = remember { product.images }
@@ -314,8 +342,6 @@ fun ProductDetailScreen(
                         .padding(vertical = 16.dp)
                 )
 
-//                Spacer(modifier = Modifier.height(16.dp))
-
                 // Descripción
                 Text(
                     text = "Descripción",
@@ -357,7 +383,52 @@ fun ProductDetailScreen(
                     // Botón de Email
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea el Intent para abrir Gmail y enviar un correo prearmado
+                             * creado con Kotlin de la siguiente manera:
+                            * */
+                            if (sellerEmail != "Cargando..." && sellerEmail != "Correo no encontrado") {
+
+                                // Construimos el cuerpo del mensaje incluyendo al remitente
+                                val emailBody = """
+                                    Hola "${product.producer}",
+                                    
+                                    Te contacto desde "LocalHands" por tu producto "${product.name}".
+                                    
+                                    [Escribe aquí tu consulta]
+                                    
+                                    ---
+                                    Datos del interesado:
+                                    Enviado por: $currentUserEmail
+                                """.trimIndent()
+
+                                /**
+                                * No es posible forzar a que la app te deje elegir automáticamente el remitente del correo
+                                 * Solo es posible cambiarlo manualmente, por motivos de seguridad.
+                                 * Para realizar esta mejora, se debe utilizar backend real, y esta app cuenta
+                                 * con backend simulado con JSON DB.
+                                * */
+                                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                    // "mailto:" asegura que solo se muestren apps de correo
+                                    data = "mailto:".toUri()
+                                    // Completa el destinatario del correo (el vendedor del producto seleccionado)
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf(sellerEmail))
+                                    // Crea el subtitulo del correo
+                                    putExtra(Intent.EXTRA_SUBJECT, "Consulta LocalHands: ${product.name}")
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                }
+
+                                try {
+                                    // Esto abrirá el selector de cuentas/apps de correo
+                                    context.startActivity(Intent.createChooser(intent, "Enviar consulta con..."))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "No tienes una app de correo configurada", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "No se pudo obtener el correo del vendedor", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Email,
