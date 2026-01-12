@@ -92,18 +92,23 @@ fun ProductDetailScreen(
     // Se obtiene el contexto para el Intent
     val context = LocalContext.current
 
-    // Estado para guardar el email encontrado
+    // Estado para guardar el email del vendedor encontrado
     var sellerEmail by remember { mutableStateOf("Cargando...") }
 
     // Obtenemos el email del usuario logueado (quien envía el correo)
     val editState by profileViewModel.editState.collectAsState()
     val currentUserEmail = editState.email
 
-    // Buscamos el email del vendedor cuando arranca la pantalla
+    // Estado para el guardar el teléfono del vendedor
+    var sellerPhone by remember { mutableStateOf("") }
+
+    // Buscamos el email y el teléfono del vendedor cuando arranca la pantalla y encuentra el ID del vendedor
     LaunchedEffect(product.ownerId) {
         val seller = sellViewModel.getSellerEmailById(product.ownerId!!).firstOrNull()
         sellerEmail = seller?.email ?: "Correo no encontrado"
+        sellerPhone = seller?.phone ?: ""
     }
+
 
     // Estado para manejar la lista de imágenes del producto
     val productImages = remember { product.images }
@@ -111,7 +116,7 @@ fun ProductDetailScreen(
     // Control del visor de imágenes
     val pagerState = rememberPagerState(pageCount = { productImages.size })
 
-    /*Cargamos la lista de productos favoritos actuales en la UI*/
+    // Cargamos la lista de productos favoritos actuales en la UI
     LaunchedEffect(Unit) {
         favoriteViewModel.loadFavorites()
     }
@@ -420,7 +425,7 @@ fun ProductDetailScreen(
                                 }
 
                                 try {
-                                    // Esto abrirá el selector de cuentas/apps de correo
+                                    // Abrir selector de cuentas/apps de correo
                                     context.startActivity(Intent.createChooser(intent, "Enviar consulta con..."))
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "No tienes una app de correo configurada", Toast.LENGTH_SHORT).show()
@@ -440,7 +445,37 @@ fun ProductDetailScreen(
                     // Botón de Teléfono
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea el Intent para abrir el Dial por defecto de Android
+                             * para realizar llamada con el número del vendedor cargado previamente,
+                             * agregar el contacto, o enviar un mensaje de texto.
+                             * */
+                            if (sellerPhone.isNotEmpty()) {
+                                /**
+                                 * Se normaliza el número de télefono, sabiendo que el mismo corresponde
+                                 * a Argentina
+                                 * */
+                                val normalizedPhone = normalizePhoneAR(sellerPhone)
+
+                                /**
+                                 * ACTION_DIAL abre el marcador con el número puesto
+                                 * pero no inicia la llamada automáticamente (es más seguro)
+                                 * */
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = "tel:$normalizedPhone".toUri()
+                                }
+
+                                // Abrir la pantalla para realizar llamada, agregar contacto o enviar mensaje de texto
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "No se pudo abrir el marcador", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "El vendedor no tiene teléfono registrado", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Phone,
@@ -467,4 +502,40 @@ fun ProductDetailScreen(
             }
         }
     }
+}
+
+/**
+ * Normaliza un número telefónico argentino para uso local.
+ *
+ * Convierte formatos comunes (+54, 9, 0, espacios, guiones, paréntesis)
+ * a un número válido para el marcador telefónico nacional.
+ *
+ * Ejemplos:
+ * +54 9 11 3456-7890 → 1134567890
+ * 011 3456 7890     → 1134567890
+ *
+ * @param phone Número telefónico en formato libre.
+ * @return Número normalizado (solo dígitos) o cadena vacía si es inválido.
+ */
+fun normalizePhoneAR(phone: String): String {
+    // Eliminar todo lo que no sea dígito
+    var clean = phone.replace(Regex("[^0-9]"), "")
+
+    // Eliminar código país 54 si existe
+    if (clean.startsWith("54")) {
+        clean = clean.removePrefix("54")
+    }
+
+    // Eliminar 9 (usado para móviles internacionales)
+    if (clean.startsWith("9")) {
+        clean = clean.removePrefix("9")
+    }
+
+    // Eliminar 0 inicial del código de área
+    if (clean.startsWith("0")) {
+        clean = clean.removePrefix("0")
+    }
+
+    // Validación mínima (10 dígitos típico en AR)
+    return if (clean.length in 10..11) clean else ""
 }
