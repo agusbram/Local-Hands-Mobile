@@ -194,11 +194,7 @@ fun SettingsScreen(navController: NavController,
 
                 Spacer(Modifier.height(16.dp))
 
-                DropdownNotificationFrequency(selectedFrequency = selectedFrequency,
-                    onFrequencySelected = { selectedFrequency = it }
-                )
-
-                Text("Alertas de favoritos:")
+                Text("Alertas de favoritos", style = MaterialTheme.typography.titleMedium)
                 AlertsSwitchFavorites()
 
                 Spacer(Modifier.height(16.dp))
@@ -446,61 +442,6 @@ fun DropdownUbication (
                         2. Cierra el menú (expanded = false)*/
                         onClick = {
                             onCitySelected(city)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-/*Misma lógica que la función DropdownUbication (la función creada arriba)*/
-@Composable
-fun DropdownNotificationFrequency(
-    selectedFrequency: String,
-    onFrequencySelected: (String) -> Unit
-) {
-    val frequencies = listOf("Cada hora", "Cada 6 horas", "Cada 12 horas", "Una vez al día")
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        Text(
-            text = "Frecuencia de notificaciones",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Box {
-            OutlinedTextField(
-                value = selectedFrequency,
-                onValueChange = { }, // No editable manualmente
-                readOnly = true,
-                label = { Text("Seleccionar frecuencia") },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    IconButton(onClick = { expanded = !expanded }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Expandir lista"
-                        )
-                    }
-                }
-            )
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                frequencies.forEach { frequency ->
-                    DropdownMenuItem(
-                        text = { Text(frequency) },
-                        onClick = {
-                            onFrequencySelected(frequency)
                             expanded = false
                         }
                     )
