@@ -79,8 +79,16 @@ fun ProductOwnerDetailScreen(
     onEdit: (Product) -> Unit,
     onDelete: (Product) -> Unit
 ) {
-    // Observamos el producto directamente de la base de datos por su ID
-    val productState by productViewModel.getProduct(productId).collectAsState()
+    /**
+     * Recordamos el Flow para que no se tenga que actualizar la pagina constantemente.
+     * Se obtiene el producto desde la BD, haciendo una consulta que cuesta pocos recursos
+     * */
+    val productFlow = remember(productId) {
+        productViewModel.getProduct(productId)
+    }
+
+    // Se obtiene el estado del producto para obtener posteriormente su valor actual en tiempo real
+    val productState by productFlow.collectAsState()
 
     // Usamos el valor actual del estado
     val selectedProduct = productState
@@ -93,7 +101,7 @@ fun ProductOwnerDetailScreen(
     val pagerState = rememberPagerState(pageCount = { productImages.size })
 
     // Se maneja el caso que el producto sea igual a null
-    if (productState == null) {
+    if (selectedProduct == null) {
         // Mostrar un cargando o volver atrás si el producto ya no existe
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
