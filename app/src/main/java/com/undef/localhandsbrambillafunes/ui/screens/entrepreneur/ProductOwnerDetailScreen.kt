@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -135,35 +136,41 @@ fun ProductOwnerDetailScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Visor de imágenes
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
-                AsyncImage(
-                    model = productImages[page],
-                    contentDescription = "Imagen del producto",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+            ) {
+                // Visor de imágenes
+                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+                    AsyncImage(
+                        model = productImages[page],
+                        contentDescription = "Imagen del producto ${page + 1}",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
 
-            if (productImages.size > 1) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(productImages.size) { index ->
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f)
-                                )
-                        )
+                if (productImages.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(productImages.size) { index ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f)
+                                    )
+                            )
+                        }
                     }
                 }
             }
