@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Directorio raíz del almacenamiento externo -->
+    <external-path name="external_storage_root" path="." />
+
+    <!-- Directorio de archivos externos privados de la app -->
+    <external-files-path name="external_files" path="." />
+
+    <!-- Directorio de cache interno -->
+    <cache-path name="internal_cache" path="." />
+
+    <!-- Directorio de archivos internos -->
+    <files-path name="internal_files" path="." />
+</paths>
