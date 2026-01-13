@@ -1,8 +1,12 @@
 package com.undef.localhandsbrambillafunes.ui.screens.productdetail
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,12 +72,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.net.toUri
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
-import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
+import com.undef.localhandsbrambillafunes.util.PermissionManager
 import kotlinx.coroutines.flow.firstOrNull
+import java.io.File
 
 
 /**
@@ -122,10 +128,25 @@ fun ProductDetailScreen(
     }
     val favorites by favoriteViewModel.favorites.collectAsState()
 
-
-
     // Estado para el favorito del producto de la base de datos
     val isFavorite = favorites.any { it.id == product.id }
+
+    // Launcher para permisos
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            // Permisos concedidos, proceder a compartir
+            shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+        } else {
+            Toast.makeText(
+                context,
+                "Se necesitan permisos para compartir imágenes",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     Scaffold(
         // Barra superior con botón de retroceso
@@ -487,7 +508,25 @@ fun ProductDetailScreen(
                     // Botón de Compartir
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea un mensaje de texto formateado con la información esencial
+                             * del producto para compartirlo a través de apps externas (WhatsApp, Instagram, etc.)
+                             */
+                            // Verificar permisos antes de compartir
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                if (!PermissionManager.hasImagePermission(context)) {
+                                    // Solicitar permisos antes de compartir
+                                    permissionLauncher.launch(PermissionManager.getRequiredPermissions())
+                                } else {
+                                    // Ya tiene permisos, compartir directamente
+                                    shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+                                }
+                            } else {
+                                // Para versiones anteriores a Android 13, compartir directamente
+                                shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Share,
@@ -501,6 +540,109 @@ fun ProductDetailScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+}
+
+
+/**
+ * Comparte la información de un producto mediante un Intent, incluyendo opcionalmente
+ * una imagen, asegurando compatibilidad con distintas versiones de Android.
+ *
+ * Si existe al menos una imagen válida, se adjunta al contenido compartido usando
+ * un `FileProvider`. En caso contrario, se comparte únicamente el texto descriptivo
+ * del producto.
+ *
+ * @param context Contexto desde el cual se lanza el Intent de compartición.
+ * @param product Objeto [Product] que contiene la información principal del producto.
+ * @param productImages Lista de rutas de imágenes asociadas al producto.
+ *                      Se utilizará únicamente la primera imagen válida.
+ * @param currentUserEmail Correo electrónico del usuario actual (no utilizado
+ *                         directamente en la implementación actual, pero disponible
+ *                         para futuras extensiones).
+ */
+fun shareProductWithImageCompat(
+    context: Context,
+    product: Product,
+    productImages: List<String>,
+    currentUserEmail: String
+) {
+    // Se crea el texto descriptivo a compartir del producto
+    val shareText = """
+        ¡Mira lo que encontré en LocalHands! 
+        
+        🎁 Producto: *${product.name}*
+        💰 Precio: $${product.price}
+        📍 Ubicación: ${product.location}
+        👤 Vendedor: ${product.producer}
+        
+        Descripción: ${product.description}
+        
+        _Enviado desde "LocalHands"_
+    """.trimIndent()
+
+    // Se crea el Intent para compartir el producto a través del botón de Share
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        // Intentar adjuntar imagen
+        val imageUri = getImageUriForSharing(context, productImages)
+
+        if (imageUri != null) {
+            putExtra(Intent.EXTRA_STREAM, imageUri)
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "image/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } else {
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "text/plain"
+        }
+    }
+
+    val shareIntent = Intent.createChooser(sendIntent, "Compartir producto")
+
+    try {
+        context.startActivity(shareIntent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "No se pudo compartir", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Obtiene de forma segura un [Uri] compartible para la primera imagen válida
+ * de la lista proporcionada.
+ *
+ * La función:
+ * - Limpia el prefijo `file://` si existe en la ruta.
+ * - Verifica que el archivo exista físicamente.
+ * - Genera un `content://Uri` usando un [FileProvider] configurado en la aplicación.
+ *
+ * En caso de error o si no se encuentra una imagen válida, retorna `null`.
+ *
+ * @param context Contexto necesario para acceder al [FileProvider].
+ * @param productImages Lista de rutas de imágenes del producto.
+ * @return Un [Uri] seguro para compartir la imagen o `null` si no es posible obtenerlo.
+ */
+private fun getImageUriForSharing(context: Context, productImages: List<String>): Uri? {
+    return try {
+        productImages.firstOrNull()?.let { imagePath ->
+            val cleanedPath = if (imagePath.startsWith("file://")) {
+                imagePath.replace("file://", "")
+            } else {
+                imagePath
+            }
+
+            // Obtiene el archivo y, si existe, lo convierte a un Uri para utilizar el mismo en el compartido del Intent
+            val file = File(cleanedPath)
+            if (file.exists()) {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            } else {
+                null
+            }
+        }
+    } catch (e: Exception) {
+        null
     }
 }
 
