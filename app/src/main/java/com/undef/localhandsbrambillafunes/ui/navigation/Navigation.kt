@@ -188,11 +188,13 @@ fun Navigation() {
                 ProductOwnerDetailScreen(
                     navController = navController,
                     product = it,
+                    productId = productId,
                     onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(it.id)) },
                     onDelete = {
-                        productViewModel.deleteProduct(it)
+                        productViewModel.deleteProductSyncApi(it)
                         navController.popBackStack()
-                    }
+                    },
+                    productViewModel = productViewModel
                 )
             }
         }
