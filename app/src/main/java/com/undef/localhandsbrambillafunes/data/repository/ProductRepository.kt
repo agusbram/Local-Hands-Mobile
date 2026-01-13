@@ -313,16 +313,6 @@ class ProductRepository @Inject constructor(
     }
 
     /**
-     * Obtiene un producto específico por su identificador.
-     *
-     * Esta función consulta la base de datos para recuperar un producto que coincida con el ID proporcionado.
-     *
-     * @param id El identificador único del producto que se desea obtener.
-     * @return Una instancia de [Product] correspondiente al ID proporcionado, o `null` si no se encuentra ningún producto con ese ID.
-     */
-    fun getProductById(id: Int) = productDao.getProductById(id)
-
-    /**
      * Obtiene un flujo reactivo con todos los productos publicados por un usuario específico.
      *
      * Este método consulta la base de datos local y retorna los productos cuyo `ownerId`
@@ -334,6 +324,21 @@ class ProductRepository @Inject constructor(
      */
     fun getProductsByOwner(ownerId: Int): Flow<List<Product>> =
         productDao.getProductsByOwner(ownerId)
+
+    /**
+     * Obtiene un producto por su identificador.
+     *
+     * Esta función consulta la fuente de datos y retorna un [Flow] que emite
+     * el [Product] correspondiente al `productId` proporcionado.
+     * Si no existe un producto con ese identificador, el flujo emitirá `null`.
+     *
+     * El flujo se mantiene activo y emitirá nuevos valores si el producto
+     * cambia en la base de datos.
+     *
+     * @param productId Identificador único del producto a buscar.
+     * @return Un [Flow] que emite el [Product] encontrado o `null` si no existe.
+     */
+    fun getProductById(productId: Int): Flow<Product?> = productDao.getProductById(productId)
 
     /**
      * Obtiene una lista de productos filtrados por una categoría específica.

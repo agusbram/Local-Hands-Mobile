@@ -122,18 +122,6 @@ class ProductViewModel @Inject constructor(
     }
 
     /**
-     * Elimina un producto de la base de datos.
-     *
-     * Este método remueve permanentemente el producto proporcionado.
-     * Se recomienda usarlo con confirmación del usuario, especialmente si el producto está publicado.
-     *
-     * @param product Producto que se desea eliminar.
-     */
-    fun deleteProduct(product: Product) = viewModelScope.launch {
-        repository.deleteProduct(product)
-    }
-
-    /**
      * Agrega un producto a la lista de favoritos del usuario actualmente autenticado.
      *
      * Este método utiliza el `userId` asociado al `ViewModel` para crear la relación
@@ -169,6 +157,32 @@ class ProductViewModel @Inject constructor(
     fun getMyProducts(ownerId: Int): StateFlow<List<Product>> =
         repository.getProductsByOwner(ownerId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+
+    /**
+     * Obtiene un producto específico a partir de su identificador.
+     *
+     * Esta función expone un flujo reactivo del producto solicitado,
+     * convirtiendo el [Flow] proporcionado por el repositorio en un [StateFlow].
+     *
+     * El [StateFlow] se mantiene activo mientras existan suscriptores y se
+     * cancela automáticamente tras 5 segundos sin observadores, de acuerdo
+     * con la política [SharingStarted.WhileSubscribed].
+     *
+     * Si el producto no existe, el flujo emitirá `null`.
+     *
+     * @param productId Identificador único del producto a obtener.
+     * @return Un [StateFlow] que emite el [Product] correspondiente o `null`
+     * si no se encuentra disponible.
+     */
+    fun getProduct(productId: Int): StateFlow<Product?> {
+        return repository.getProductById(productId)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = null
+            )
+    }
 
     /**
      * Obtiene la lista de productos marcados como favoritos por el usuario.

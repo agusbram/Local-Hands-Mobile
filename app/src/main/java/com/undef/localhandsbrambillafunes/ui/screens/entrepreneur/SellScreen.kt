@@ -98,12 +98,23 @@ fun SellScreen(
         currentSellerEmailState.value = sessionViewModel.getCurrentSellerEmail()
     }
 
-    // Se obtienen los productos del vendedor de la sesión actual
-    val productsOwner = currentUserIdState.value?.let {
-        productViewModel.getMyProducts(it)
+    /**
+     * Usamos remember para mantener el MISMO Flow entre recomposiciones
+     * El bloque solo se recalcula si currentUserIdState.value cambia.
+     * Esto soluciona el pasado error de mostrar intermitentemente la lista de productos
+     * del vendedor actualmente logueado, ya que utiliza Flow, que es una tubería que
+     * escucha constantemente si hay cambios en los productos del vendedor y, si los hay,
+     * actualiza la UI, sin tener que andar constanemente actualizando la lista.
+     * Remember solucionó el error.
+     * */
+    val productsOwnerFlow = remember(currentUserIdState.value) {
+        currentUserIdState.value?.let { userId ->
+            productViewModel.getMyProducts(userId)
+        }
     }
 
-    val productsOwnerState by productsOwner?.collectAsState(initial = emptyList()) ?: remember {
+    // Ahora nos suscribimos al Flow estable para mostrar fluidamente los productos del vendedor
+    val productsOwnerState by productsOwnerFlow?.collectAsState() ?: remember {
         mutableStateOf(emptyList())
     }
 
