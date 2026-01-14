@@ -82,7 +82,7 @@ class ProductViewModel @Inject constructor(
         .debounce(300) // Evita buscar en cada letra si el usuario escribe rápido
         .flatMapLatest { query ->
             if (query.isBlank()) {
-                // Muestra todo los productos de Room si está vacía la busqueda
+                // Muestra todos los productos de Room si está vacía la busqueda
                 repository.getAllProducts()
             } else {
                 // Llama al DAO con la query múltiple
