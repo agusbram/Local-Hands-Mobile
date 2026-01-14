@@ -155,7 +155,7 @@ fun SearchBarScreen(
                 )
             }
 
-            // Indicador pequeño que indica qué se está buscando algún producto en el buscador
+            // Indicador pequeño que indica que se está buscando algún producto en el buscador
             if (searchQuery.isNotEmpty()) {
                 Text(
                     text = "Resultados para: '$searchQuery'",
