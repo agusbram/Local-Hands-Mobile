@@ -80,10 +80,10 @@ interface ProductDao {
      */
     @Query("""
     SELECT * FROM ProductEntity 
-    WHERE name LIKE '%' || :query || '%' 
-    OR category LIKE '%' || :query || '%' 
-    OR location LIKE '%' || :query || '%' 
-    OR producer LIKE '%' || :query || '%'
+    WHERE name LIKE '%' || :query || '%' COLLATE NOCASE
+    OR category LIKE '%' || :query || '%' COLLATE NOCASE
+    OR location LIKE '%' || :query || '%' COLLATE NOCASE
+    OR producer LIKE '%' || :query || '%' COLLATE NOCASE
     """)
     fun searchProducts(query: String): Flow<List<Product>>
 
