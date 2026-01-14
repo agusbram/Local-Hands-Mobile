@@ -7,10 +7,15 @@ import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,6 +53,45 @@ class ProductViewModel @Inject constructor(
     val products: StateFlow<List<Product>> = _products
 
     /**
+     * Obtiene el estado reactivo en tiempo real de lo que se escribe en la barra de búsqueda
+     * de productos.
+     * */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    /**
+     * Resultados de la búsqueda reactiva de productos.
+     *
+     * Este [StateFlow] emite en tiempo real la lista de productos que coincide
+     * con el texto ingresado en la barra de búsqueda.
+     *
+     * El flujo aplica un `debounce` de 300 ms para evitar ejecutar búsquedas
+     * innecesarias mientras el usuario escribe rápidamente.
+     *
+     * - Si el texto de búsqueda está vacío o contiene solo espacios en blanco,
+     *   se emiten todos los productos almacenados localmente.
+     * - Si el texto contiene contenido válido, se ejecuta una búsqueda filtrada
+     *   a través del repositorio.
+     *
+     * El flujo se mantiene activo mientras existan suscriptores y se cancela
+     * automáticamente tras 5 segundos sin observadores, según la política
+     * [SharingStarted.WhileSubscribed].
+     */
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    val searchResults = _searchQuery
+        .debounce(300) // Evita buscar en cada letra si el usuario escribe rápido
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                // Muestra todos los productos de Room si está vacía la busqueda
+                repository.getAllProducts()
+            } else {
+                // Llama al DAO con la query múltiple
+                repository.searchProducts(query)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
      * Inicializa el ViewModel ejecutando automáticamente la sincronización
      * de productos con la API al momento de su creación.
      *
@@ -72,6 +116,19 @@ class ProductViewModel @Inject constructor(
             // Recargar productos después de sincronizar
             _products.value = repository.getAllProducts().firstOrNull() ?: emptyList()
         }
+    }
+
+    /**
+     * Actualiza el texto de búsqueda de productos.
+     *
+     * Esta función modifica el valor del flujo interno de consulta de búsqueda,
+     * lo que desencadena automáticamente la ejecución de una nueva búsqueda
+     * reactiva y la actualización de [searchResults].
+     *
+     * @param newQuery Nuevo texto ingresado por el usuario en la barra de búsqueda.
+     */
+    fun onSearchQueryChanged(newQuery: String) {
+        _searchQuery.value = newQuery
     }
 
     /**
