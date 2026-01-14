@@ -283,6 +283,23 @@ class SellViewModel @Inject constructor(
     }
 
     /**
+     * Obtiene el vendedor asociado a un identificador específico.
+     *
+     * Esta función consulta el repositorio de vendedores y retorna un [Flow] que
+     * emite el objeto [Seller] correspondiente al `sellerId` indicado. El uso de
+     * [Flow] permite observar los cambios de forma reactiva, de modo que cualquier
+     * actualización en los datos del vendedor se reflejará automáticamente en los
+     * observadores.
+     *
+     * @param sellerId Identificador único del vendedor.
+     * @return Un [Flow] que emite el vendedor correspondiente al ID proporcionado,
+     *         o `null` si no existe un vendedor con dicho identificador.
+     */
+    fun getSellerEmailById(sellerId: Int): Flow<Seller?> {
+        return sellerRepository.getSellerById(sellerId)
+    }
+
+    /**
      * Inicia un proceso de sincronización periódica de vendedores
      * con la API remota.
      *

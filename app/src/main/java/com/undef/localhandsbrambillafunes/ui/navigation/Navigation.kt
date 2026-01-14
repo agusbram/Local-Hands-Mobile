@@ -184,16 +184,17 @@ fun Navigation() {
             val productViewModel = hiltViewModel<ProductViewModel>()
             val product = productViewModel.products.collectAsState().value.find { product -> product.id == productId }
             
-            product?.let { productDetails -> // Se le da un nombre explícito a 'it' para mayor claridad y eliminar el warning
+            product?.let { productDetails -> // Se usa 'productDetails' para mayor claridad
                 ProductOwnerDetailScreen(
                     navController = navController,
-                    product = productDetails,
-                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) },
+                    product = productDetails, // CORREGIDO
+                    productId = productId,
+                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) }, // CORREGIDO
                     onDelete = {
-                        // CORREGIDO: Se llama a la función correcta del ViewModel
-                        productViewModel.deleteProductSyncApi(productDetails)
+                        productViewModel.deleteProductSyncApi(productDetails) // CORREGIDO
                         navController.popBackStack()
-                    }
+                    },
+                    productViewModel = productViewModel
                 )
             }
         }
