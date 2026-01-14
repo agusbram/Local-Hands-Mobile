@@ -8,7 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
@@ -116,10 +115,10 @@ fun Navigation() {
             val product = productViewModel.products.collectAsState().value.find { it.id == productId }
 
             // Muestra la pantalla de detalle con el producto encontrado
-            product?.let {
+            product?.let { productDetails -> // Se le da un nombre explícito a 'it' para mayor claridad
                 ProductDetailScreen(
                     navController = navController,
-                    product = it,
+                    product = productDetails,
                     favoriteViewModel = hiltViewModel<FavoriteViewModel>()
                 )
             }
@@ -183,14 +182,16 @@ fun Navigation() {
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getInt("productId") ?: 0
             val productViewModel = hiltViewModel<ProductViewModel>()
-            val product = productViewModel.products.collectAsState().value.find { it.id == productId }
-            product?.let {
+            val product = productViewModel.products.collectAsState().value.find { product -> product.id == productId }
+            
+            product?.let { productDetails -> // Se le da un nombre explícito a 'it' para mayor claridad y eliminar el warning
                 ProductOwnerDetailScreen(
                     navController = navController,
-                    product = it,
-                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(it.id)) },
+                    product = productDetails,
+                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) },
                     onDelete = {
-                        productViewModel.deleteProduct(it)
+                        // CORREGIDO: Se llama a la función correcta del ViewModel
+                        productViewModel.deleteProductSyncApi(productDetails)
                         navController.popBackStack()
                     }
                 )
