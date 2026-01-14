@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Favorite
@@ -31,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,37 +40,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.model.ProductListItem
-import com.undef.localhandsbrambillafunes.data.model.ProductProvider
 import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 /**
  * Composable que implementa la pantalla de búsqueda de productos.
  *
+ *
  * @param navController Controlador de navegación para gestionar la navegación entre pantallas.
+ * @param productViewModel Modelo de vista para gestionar la lógica de la pantalla de búsqueda.
  */
 @Composable
-fun SearchBarScreen(navController: NavController) {
+fun SearchBarScreen(
+    navController: NavController,
+    productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>()
+) {
     // Estado para manejar el diálogo de convertirse en vendedor
     var showSellDialog by remember { mutableStateOf(false) }
 
-    // Obtiene la lista de productos desde el proveedor de datos
-    val products: List<Product> = ProductProvider.products
-
-    // Estado para almacenar la consulta de búsqueda actual
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Estado para almacenar la lista de productos filtrados según la búsqueda
-    var filteredProducts by remember { mutableStateOf(products) }
+    // Obtenemos el estado de búsqueda y los resultados del ViewModel
+    val searchQuery by productViewModel.searchQuery.collectAsState()
+    val filteredProducts by productViewModel.searchResults.collectAsState()
 
     Scaffold(
-        // Implementación para Material3:
         // Barra inferior con navegación principal
         bottomBar = {
             // Navegación inferior con iconos
@@ -148,33 +149,41 @@ fun SearchBarScreen(navController: NavController) {
                     query = searchQuery,
                     onQueryChange = { newQuery ->
                         // Actualiza la consulta y filtra los productos en tiempo real
-                        searchQuery = newQuery
-                        filteredProducts = if (newQuery.isEmpty()) {
-                            // Si la consulta está vacía, muestra todos los productos
-                            products
-                        } else {
-                            // Filtra productos que coincidan con la consulta en nombre, descripción o categoría
-                            products.filter { product ->
-                                product.name.contains(newQuery, ignoreCase = true) ||
-                                        product.description.contains(newQuery, ignoreCase = true) ||
-                                        product.category.contains(newQuery, ignoreCase = true)
-                            }
-                        }
+                        productViewModel.onSearchQueryChanged(newQuery)
                     },
                     modifier = Modifier.fillMaxWidth() // La barra de búsqueda ocupa todo el ancho disponible
+                )
+            }
+
+            // Indicador pequeño que indica qué se está buscando algún producto en el buscador
+            if (searchQuery.isNotEmpty()) {
+                Text(
+                    text = "Resultados para: '$searchQuery'",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = Color.Gray
                 )
             }
 
             // Espacio vertical entre la barra de búsqueda y la lista de resultados
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Lista de resultados de búsqueda
+            // Lista de resultados de búsqueda en caso que no se encuentre ningún producto en el buscador
             LazyColumn {
+                if (filteredProducts.isEmpty() && searchQuery.isNotEmpty()) {
+                    item {
+                        Text(
+                            "No se encontraron productos, categorías o vendedores",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
                 items(
                     items = filteredProducts,
-                    key = { it.id } // Clave única para cada ítem (mejora el rendimiento)
+                    key = { it.id }
                 ) { product ->
-                    // Renderiza cada producto utilizando el componente ProductListItem
                     ProductListItem(product = product, navController = navController)
                 }
             }
@@ -207,9 +216,14 @@ fun SearchBar(
         value = query,                      // Valor actual del campo de texto
         onValueChange = onQueryChange,      // Callback cuando cambia el texto
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Buscar") }, // Icono de búsqueda
-        placeholder = { Text("Buscar productos...") }, // Texto de placeholder
+        placeholder = { Text("Buscar productos") }, // Texto de placeholder
         singleLine = true,                  // Limita a una sola línea
         shape = RoundedCornerShape(16.dp),  // Bordes redondeados para el campo
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Text, // Teclado de texto estándar
+            imeAction = androidx.compose.ui.text.input.ImeAction.Search,    // Cambia el botón "Enter" por una lupa
+            autoCorrect = true // Habilita la autocorrección y facilita las tildes
+        ),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,       // Color de fondo cuando tiene foco
             unfocusedContainerColor = Color.Transparent,     // Color de fondo cuando no tiene foco
