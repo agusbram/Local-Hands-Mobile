@@ -1,42 +1,128 @@
 {
   "sellers": [
     {
-      "id": "1",
-      "address": "Avenida Fuerza Aerea",
-      "email": "truktekalert@gmail.com",
-      "entrepreneurship": "Lo de Agustinesco",
-      "lastname": "Brambi",
-      "name": "Agustincito",
-      "phone": "3541207081",
-      "photoUrl": "/data/user/0/com.undef.localhandsbrambillafunes/files/profile_images/profile_dad7874b-584f-4d93-881f-90c31d65d32c.jpg"
+      "id": 1,
+      "name": "María",
+      "lastname": "García",
+      "email": "maria.garcia@example.com",
+      "phone": "3511234567",
+      "address": "Av. Colón 123, Córdoba",
+      "entrepreneurship": "Cerámicas del Sol",
+      "photoUrl": "https://picsum.photos/id/1025/200/200"
+    },
+    {
+      "id": 2,
+      "name": "Javier",
+      "lastname": "Fernández",
+      "email": "javier.fernandez@example.com",
+      "phone": "1198765432",
+      "address": "Calle Falsa 456, Buenos Aires",
+      "entrepreneurship": "Tejidos del Alma",
+      "photoUrl": "https://picsum.photos/id/1062/200/200"
+    },
+    {
+      "id": 3,
+      "name": "Ana",
+      "lastname": "Martínez",
+      "email": "ana.martinez@example.com",
+      "phone": "3415558899",
+      "address": "San Luis 789, Rosario",
+      "entrepreneurship": "Huerta La Orgánica",
+      "photoUrl": "https://picsum.photos/id/1084/200/200"
     }
   ],
   "products": [
     {
-      "category": "Textiles",
-      "description": "Descripcion UNO",
-      "id": "1",
-      "images": [
-        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767988638485.jpg"
-      ],
-      "location": "San Marcos Sierras",
-      "name": "Producto UNO",
+      "id": 1,
+      "name": "Taza de Cerámica Artesanal",
+      "description": "Taza de cerámica hecha y pintada a mano, ideal para tu café matutino. Cada pieza es única. Capacidad: 300ml.",
+      "producer": "Cerámicas del Sol",
+      "category": "Artesanías",
       "ownerId": 1,
-      "price": 456,
-      "producer": "Lo de Agustinesco"
+      "images": [
+        "https://picsum.photos/id/22/400/300",
+        "https://picsum.photos/id/24/400/300"
+      ],
+      "price": 2500.0,
+      "location": "Córdoba"
     },
     {
-      "category": "Alimentos",
-      "description": "Descripcion DOS",
-      "id": "2",
-      "images": [
-        "/data/user/0/com.undef.localhandsbrambillafunes/files/1767988708782.jpg"
-      ],
-      "location": "Capilla del Monte",
-      "name": "Producto DOS",
+      "id": 2,
+      "name": "Maceta Colgante de Barro",
+      "description": "Maceta de barro cocido con diseño rústico, perfecta para plantas de interior y exterior. No incluye planta.",
+      "producer": "Cerámicas del Sol",
+      "category": "Artesanías",
       "ownerId": 1,
-      "price": 789,
-      "producer": "Lo de Agustinesco"
+      "images": [
+        "https://picsum.photos/id/1078/400/300"
+      ],
+      "price": 3800.50,
+      "location": "Córdoba"
+    },
+    {
+      "id": 3,
+      "name": "Bufanda de Lana de Llama",
+      "description": "Bufanda unisex tejida a mano con 100% lana de llama. Suave, abrigada y duradera. Colores naturales.",
+      "producer": "Tejidos del Alma",
+      "category": "Textiles",
+      "ownerId": 2,
+      "images": [
+        "https://picsum.photos/id/145/400/300"
+      ],
+      "price": 9500.0,
+      "location": "Buenos Aires"
+    },
+    {
+      "id": 4,
+      "name": "Gorro Tejido a Dos Agujas",
+      "description": "Gorro de lana con pompón, disponible en varios colores. Tejido a mano con mucho amor.",
+      "producer": "Tejidos del Alma",
+      "category": "Textiles",
+      "ownerId": 2,
+      "images": [
+        "https://picsum.photos/id/563/400/300"
+      ],
+      "price": 4200.0,
+      "location": "Buenos Aires"
+    },
+    {
+      "id": 5,
+      "name": "Canasta de Verduras de Estación",
+      "description": "1kg de verduras frescas y orgánicas de nuestra huerta. Incluye lechuga, tomate, rúcula y más, según disponibilidad.",
+      "producer": "Huerta La Orgánica",
+      "category": "Alimentos",
+      "ownerId": 3,
+      "images": [
+        "https://picsum.photos/id/1080/400/300"
+      ],
+      "price": 3200.0,
+      "location": "Rosario"
+    },
+    {
+      "id": 6,
+      "name": "Miel Pura de Campo (500g)",
+      "description": "Frasco de 500g de miel pura de abejas de campo, sin aditivos ni conservantes. Cosecha propia.",
+      "producer": "Huerta La Orgánica",
+      "category": "Alimentos",
+      "ownerId": 3,
+      "images": [
+        "https://picsum.photos/id/135/400/300"
+      ],
+      "price": 2800.0,
+      "location": "Rosario"
+    },
+    {
+      "id": 7,
+      "name": "Jabón de Lavanda y Karité",
+      "description": "Jabón natural y vegano hecho con aceite de coco, manteca de karité y aceite esencial de lavanda. Relajante e hidratante.",
+      "producer": "Cerámicas del Sol",
+      "category": "Cosmética Natural",
+      "ownerId": 1,
+      "images": [
+        "https://picsum.photos/id/312/400/300"
+      ],
+      "price": 1800.0,
+      "location": "Córdoba"
     }
   ]
 }
