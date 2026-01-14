@@ -46,41 +46,6 @@ class ProductRepository @Inject constructor(
     //--- PRODUCTOS EN API ---
 
     /**
-     * Obtiene todos los productos disponibles desde la API remota.
-     *
-     * Esta función realiza una solicitud HTTP GET al endpoint `/products`
-     * a través de Retrofit, devolviendo una lista de productos en formato JSON.
-     *
-     * @return Lista de [Product] obtenidos del servidor.
-     * @throws IOException si hay errores de red.
-     */
-    suspend fun getProducts() = api.getProducts()
-
-    /**
-     * Obtiene los productos publicados por un usuario emprendedor específico.
-     *
-     * Esta función consulta el endpoint `/products` agregando el parámetro
-     * de consulta `ownerId` para filtrar por productos del dueño.
-     *
-     * @param ownerId ID del usuario que publicó los productos.
-     * @return Lista de [Product] asociados al dueño especificado.
-     * @throws IOException si la red falla o la API devuelve un error.
-     */
-    suspend fun getProductsByOwnerId(ownerId: Int?) = api.getProductsByOwner(ownerId)
-
-    /**
-     * Envía un nuevo producto al servidor para que sea persistido.
-     *
-     * Esta función realiza una solicitud HTTP POST al endpoint `/products`
-     * enviando los datos del producto en formato JSON como cuerpo de la petición.
-     *
-     * @param product Instancia de [Product] que se desea agregar al backend.
-     * @return El producto creado con su ID asignado por el servidor.
-     * @throws IOException en caso de fallo en la conexión o error de la API.
-     */
-    suspend fun addProduct(product: Product) = api.addProduct(product)
-
-    /**
      * Sincroniza los productos almacenados localmente con los obtenidos desde la API remota.
      *
      * Este método consulta la API para obtener la lista completa de productos
@@ -165,34 +130,6 @@ class ProductRepository @Inject constructor(
     }
 
     /**
-     * Genera el próximo ID disponible para un producto.
-     *
-     * Estrategia:
-     * - Consulta la API para obtener todos los productos.
-     * - Busca el ID numérico más alto y retorna el siguiente.
-     *
-     * En caso de error de red:
-     * - Genera un ID basado en el timestamp actual.
-     *
-     * @return ID único sugerido para un nuevo producto.
-     */
-    private suspend fun generateNextId(): Int {
-        return try {
-            val allProducts = api.getProducts()
-            if (allProducts.isEmpty()) {
-                1  // Primer producto
-            } else {
-                // Encontrar el máximo ID numérico
-                val maxId = allProducts.maxOfOrNull { it.id } ?: 0
-                maxId + 1
-            }
-        } catch (e: Exception) {
-            // Si falla la consulta a la API, generar ID basado en timestamp
-            (System.currentTimeMillis() % 1000000).toInt()
-        }
-    }
-
-    /**
      * Actualiza un producto tanto en la API como en la base de datos local.
      *
      * Flujo:
@@ -234,15 +171,15 @@ class ProductRepository @Inject constructor(
      */
     suspend fun updateProductsProducerByOwner(ownerId: Int, newProducer: String) {
         try {
-            Log.d("ProductRepository", "🔍 Buscando productos con ownerId=$ownerId")
+            Log.d("ProductRepository", "Buscando productos con ownerId=$ownerId")
 
             // Obtener productos del owner desde la base de datos local
             val products = productDao.getProductsByOwner(ownerId).firstOrNull() ?: emptyList()
 
-            Log.d("ProductRepository", "📦 Encontrados ${products.size} productos para actualizar")
+            Log.d("ProductRepository", "Encontrados ${products.size} productos para actualizar")
 
             if (products.isEmpty()) {
-                Log.w("ProductRepository", "⚠️ No se encontraron productos con ownerId=$ownerId")
+                Log.w("ProductRepository", "No se encontraron productos con ownerId=$ownerId")
                 return
             }
 
@@ -255,20 +192,20 @@ class ProductRepository @Inject constructor(
                 // Actualizar en API
                 try {
                     api.updateProduct(product.id, updatedProduct)
-                    Log.d("ProductRepository", "✅ Producto ${product.id} actualizado en API")
+                    Log.d("ProductRepository", "Producto ${product.id} actualizado en API")
                 } catch (e: Exception) {
-                    Log.e("ProductRepository", "❌ Error actualizando producto ${product.id} en API:  ${e.message}", e)
+                    Log.e("ProductRepository", "Error actualizando producto ${product.id} en API:  ${e.message}", e)
                 }
 
                 // Actualizar localmente (SIEMPRE, aunque falle la API)
                 productDao.updateProduct(updatedProduct)
-                Log.d("ProductRepository", "💾 Producto ${product.id} actualizado en Room")
+                Log.d("ProductRepository", "Producto ${product.id} actualizado en Room")
             }
 
-            Log.d("ProductRepository", "✅ Actualización completa:  ${products.size} productos procesados")
+            Log.d("ProductRepository", "Actualización completa:  ${products.size} productos procesados")
 
         } catch (e: Exception) {
-            Log.e("ProductRepository", "❌ Error crítico actualizando productos por owner", e)
+            Log.e("ProductRepository", "Error crítico actualizando productos por owner", e)
             throw e
         }
     }
@@ -301,6 +238,34 @@ class ProductRepository @Inject constructor(
         }
     }
 
+    /**
+     * Genera el próximo ID disponible para un producto.
+     *
+     * Estrategia:
+     * - Consulta la API para obtener todos los productos.
+     * - Busca el ID numérico más alto y retorna el siguiente.
+     *
+     * En caso de error de red:
+     * - Genera un ID basado en el timestamp actual.
+     *
+     * @return ID único sugerido para un nuevo producto.
+     */
+    private suspend fun generateNextId(): Int {
+        return try {
+            val allProducts = api.getProducts()
+            if (allProducts.isEmpty()) {
+                1  // Primer producto
+            } else {
+                // Encontrar el máximo ID numérico
+                val maxId = allProducts.maxOfOrNull { it.id } ?: 0
+                maxId + 1
+            }
+        } catch (e: Exception) {
+            // Si falla la consulta a la API, generar ID basado en timestamp
+            (System.currentTimeMillis() % 1000000).toInt()
+        }
+    }
+
     // --- PRODUCTOS EN LOCAL ---
 
     /**
@@ -313,14 +278,22 @@ class ProductRepository @Inject constructor(
     }
 
     /**
-     * Obtiene un producto específico por su identificador.
+     * Busca productos en la base de datos local según un criterio de texto.
      *
-     * Esta función consulta la base de datos para recuperar un producto que coincida con el ID proporcionado.
+     * Esta función realiza una búsqueda reactiva sobre los productos almacenados,
+     * filtrando aquellos cuyos campos relevantes coincidan con el valor del
+     * parámetro `query`. El resultado se expone como un [Flow], permitiendo que
+     * la interfaz de usuario se actualice automáticamente ante cambios en los datos.
      *
-     * @param id El identificador único del producto que se desea obtener.
-     * @return Una instancia de [Product] correspondiente al ID proporcionado, o `null` si no se encuentra ningún producto con ese ID.
+     * La búsqueda tiene diversos filtros, y se aplica sobre atributos como el nombre,
+     * la categoría, el vendedor y la ciudad.
+     *
+     * @param query Texto utilizado como criterio de búsqueda.
+     * @return Un [Flow] que emite listas de productos que coinciden con el criterio.
      */
-    fun getProductById(id: Int) = productDao.getProductById(id)
+    fun searchProducts(query: String): Flow<List<Product>> {
+        return productDao.searchProducts(query)
+    }
 
     /**
      * Obtiene un flujo reactivo con todos los productos publicados por un usuario específico.
@@ -336,73 +309,19 @@ class ProductRepository @Inject constructor(
         productDao.getProductsByOwner(ownerId)
 
     /**
-     * Obtiene una lista de productos filtrados por una categoría específica.
+     * Obtiene un producto por su identificador.
      *
-     * @param category Categoría por la cual se desea filtrar los productos.
-     * @return Lista de productos que pertenecen a la categoría proporcionada.
-     */
-    suspend fun getProductsByCategory(category: String): List<Product> =
-        withContext(Dispatchers.IO) {
-            productDao.getProductsByCategory(category)
-        }
-
-    /**
-     * Inserta un nuevo producto en la base de datos.
+     * Esta función consulta la fuente de datos y retorna un [Flow] que emite
+     * el [Product] correspondiente al `productId` proporcionado.
+     * Si no existe un producto con ese identificador, el flujo emitirá `null`.
      *
-     * @param product Instancia del producto a insertar.
-     * @return El ID generado para el nuevo producto.
-     */
-    suspend fun insertProduct(product: Product): Long = withContext(Dispatchers.IO) {
-        productDao.addProduct(product)
-    }
-
-    /**
-     * Obtiene productos según la ciudad indicada.
+     * El flujo se mantiene activo y emitirá nuevos valores si el producto
+     * cambia en la base de datos.
      *
-     * @param location Ciudad donde se encuentran los productos.
-     * @return Lista de productos localizados en la ciudad especificada.
+     * @param productId Identificador único del producto a buscar.
+     * @return Un [Flow] que emite el [Product] encontrado o `null` si no existe.
      */
-    suspend fun getProductsByCity(location: String): List<Product> = withContext(Dispatchers.IO) {
-        productDao.getProductsByCity(location)
-    }
-
-    /**
-     * Busca productos cuyo nombre de vendedor coincida parcial o totalmente con el nombre indicado.
-     *
-     * @param name Nombre o parte del nombre del vendedor.
-     * @return Lista de productos asociados a vendedores con ese nombre.
-     */
-    suspend fun searchProductsBySeller(name: String): List<Product> = withContext(Dispatchers.IO) {
-        productDao.searchProductsBySeller(name)
-    }
-
-    /**
-     * Actualiza los datos de un producto existente en la base de datos.
-     *
-     * @param product Producto con la información actualizada.
-     */
-    suspend fun updateProduct(product: Product) = withContext(Dispatchers.IO) {
-        productDao.updateProduct(product)
-    }
-
-    /**
-     * Elimina un producto de la base de datos.
-     *
-     * @param product Producto que se desea eliminar.
-     */
-    suspend fun deleteProduct(product: Product) = withContext(Dispatchers.IO) {
-        productDao.deleteProduct(product)
-    }
-
-    /**
-     * Inserta una lista de productos en la base de datos, reemplazando los existentes si hay conflicto.
-     * Ideal para sincronización masiva desde un servidor remoto.
-     *
-     * @param products Lista de productos a insertar o actualizar.
-     */
-    suspend fun insertAll(products: List<Product>) = withContext(Dispatchers.IO) {
-        productDao.insertAll(products)
-    }
+    fun getProductById(productId: Int): Flow<Product?> = productDao.getProductById(productId)
 
     // --- FAVORITOS ---
 
