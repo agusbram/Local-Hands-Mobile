@@ -286,7 +286,7 @@ class ProductRepository @Inject constructor(
      * parámetro `query`. El resultado se expone como un [Flow], permitiendo que
      * la interfaz de usuario se actualice automáticamente ante cambios en los datos.
      *
-     * La búsqueda tiene diversos filtros, y se se aplica sobre atributos como el nombre,
+     * La búsqueda tiene diversos filtros, y se aplica sobre atributos como el nombre,
      * la categoría, el vendedor y la ciudad.
      *
      * @param query Texto utilizado como criterio de búsqueda.
