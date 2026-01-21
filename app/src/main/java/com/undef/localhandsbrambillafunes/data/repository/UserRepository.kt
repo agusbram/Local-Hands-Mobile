@@ -101,32 +101,46 @@ class UserRepository @Inject constructor(
      * - En caso afirmativo:
      *   - Intenta eliminar el vendedor en la API remota.
      *   - Si la eliminación falla por un motivo distinto a "no encontrado" (404),
-     *     se registra el error.
+     *     se lanza una excepción.
      *   - Elimina el vendedor de la base de datos local (Room).
      * - Elimina el usuario de la base de datos local (Room), independientemente de
      *   si era vendedor o no.
      *
+     * Este método debe ejecutarse dentro de una corrutina, ya que realiza operaciones
+     * de red y de acceso a base de datos.
+     *
      * @param userId Identificador único del usuario a eliminar.
+     * @throws Exception Si ocurre un error durante la comunicación con la API remota
+     *                   o si la eliminación del vendedor falla por un motivo no esperado.
      */
-    private suspend fun deleteUserAndAssociatedData(userId: Int) {
+    suspend fun deleteUserAndAssociatedData(userId: Int) {
+        // Verificar si el usuario también es un vendedor
         val seller = sellerDao.getSellerByIdNonFlow(userId)
 
         if (seller != null) {
+            // SI EL USUARIO ES UN VENDEDOR
+
+            // Intentar eliminar el vendedor de la API
             try {
                 val response = apiService.deleteSeller(seller.id)
                 if (!response.isSuccessful && response.code() != 404) {
-                    Log.e("UserRepository", "API no pudo eliminar al vendedor (código: ${response.code()})")
+                    // Si la API falla por una razón que no sea "no encontrado", lanzamos un error.
+                    throw Exception("API no pudo eliminar al vendedor (código: ${response.code()})")
                 }
             } catch (e: Exception) {
-                Log.e("UserRepository", "Fallo en la comunicación con la API para borrar vendedor: ${e.message}")
+                // Captura errores de red o la excepción de arriba y la relanza
+                throw Exception("Fallo en la comunicación con la API: ${e.message}")
             }
-            // Siempre se intenta eliminar localmente, aunque falle la API, para mantener consistencia local.
+
+            // Eliminar el vendedor de la base de datos local (Room)
             sellerDao.deleteSeller(seller)
         }
 
         // PARA TODOS LOS USUARIOS (SEAN VENDEDORES O NO)
+        // Obtener el usuario de Room para poder eliminarlo
         val user = userDao.getUserByIdNonFlow(userId)
         if (user != null) {
+            // d. Eliminar el usuario de la base de datos local (Room)
             userDao.deleteUser(user)
         }
     }
