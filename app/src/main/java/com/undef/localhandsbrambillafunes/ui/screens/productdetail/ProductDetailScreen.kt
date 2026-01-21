@@ -1,5 +1,12 @@
 package com.undef.localhandsbrambillafunes.ui.screens.productdetail
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,7 +69,17 @@ import com.undef.localhandsbrambillafunes.data.model.FavoriteProducts
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
 import coil.compose.AsyncImage
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.net.toUri
+import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.util.PermissionManager
+import kotlinx.coroutines.flow.firstOrNull
+import java.io.File
 
 
 /**
@@ -74,8 +91,30 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun ProductDetailScreen(
     navController: NavController,
     product: Product,
-    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>()
+    favoriteViewModel: FavoriteViewModel = hiltViewModel<FavoriteViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>(),
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
+    // Se obtiene el contexto para el Intent
+    val context = LocalContext.current
+
+    // Estado para guardar el email del vendedor encontrado
+    var sellerEmail by remember { mutableStateOf("Cargando...") }
+
+    // Obtenemos el email del usuario logueado (quien envía el correo)
+    val editState by profileViewModel.editState.collectAsState()
+    val currentUserEmail = editState.email
+
+    // Estado para el guardar el teléfono del vendedor
+    var sellerPhone by remember { mutableStateOf("") }
+
+    // Buscamos el email y el teléfono del vendedor cuando arranca la pantalla y encuentra el ID del vendedor
+    LaunchedEffect(product.ownerId) {
+        val seller = sellViewModel.getSellerEmailById(product.ownerId!!).firstOrNull()
+        sellerEmail = seller?.email ?: "Correo no encontrado"
+        sellerPhone = seller?.phone ?: ""
+    }
+
 
     // Estado para manejar la lista de imágenes del producto
     val productImages = remember { product.images }
@@ -83,16 +122,31 @@ fun ProductDetailScreen(
     // Control del visor de imágenes
     val pagerState = rememberPagerState(pageCount = { productImages.size })
 
-    /*Cargamos la lista de productos favoritos actuales en la UI*/
+    // Cargamos la lista de productos favoritos actuales en la UI
     LaunchedEffect(Unit) {
         favoriteViewModel.loadFavorites()
     }
     val favorites by favoriteViewModel.favorites.collectAsState()
 
-
-
     // Estado para el favorito del producto de la base de datos
     val isFavorite = favorites.any { it.id == product.id }
+
+    // Launcher para permisos
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            // Permisos concedidos, proceder a compartir
+            shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+        } else {
+            Toast.makeText(
+                context,
+                "Se necesitan permisos para compartir imágenes",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     Scaffold(
         // Barra superior con botón de retroceso
@@ -314,8 +368,6 @@ fun ProductDetailScreen(
                         .padding(vertical = 16.dp)
                 )
 
-//                Spacer(modifier = Modifier.height(16.dp))
-
                 // Descripción
                 Text(
                     text = "Descripción",
@@ -357,7 +409,52 @@ fun ProductDetailScreen(
                     // Botón de Email
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea el Intent para abrir Gmail y enviar un correo prearmado
+                             * creado con Kotlin de la siguiente manera:
+                            * */
+                            if (sellerEmail != "Cargando..." && sellerEmail != "Correo no encontrado") {
+
+                                // Construimos el cuerpo del mensaje incluyendo al remitente
+                                val emailBody = """
+                                    Hola "${product.producer}",
+                                    
+                                    Te contacto desde "LocalHands" por tu producto "${product.name}".
+                                    
+                                    [Escribe aquí tu consulta]
+                                    
+                                    ---
+                                    Datos del interesado:
+                                    Enviado por: $currentUserEmail
+                                """.trimIndent()
+
+                                /**
+                                * No es posible forzar a que la app te deje elegir automáticamente el remitente del correo
+                                 * Solo es posible cambiarlo manualmente, por motivos de seguridad.
+                                 * Para realizar esta mejora, se debe utilizar backend real, y esta app cuenta
+                                 * con backend simulado con JSON DB.
+                                * */
+                                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                    // "mailto:" asegura que solo se muestren apps de correo
+                                    data = "mailto:".toUri()
+                                    // Completa el destinatario del correo (el vendedor del producto seleccionado)
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf(sellerEmail))
+                                    // Crea el subtitulo del correo
+                                    putExtra(Intent.EXTRA_SUBJECT, "Consulta LocalHands: ${product.name}")
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                }
+
+                                try {
+                                    // Abrir selector de cuentas/apps de correo
+                                    context.startActivity(Intent.createChooser(intent, "Enviar consulta con..."))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "No tienes una app de correo configurada", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "No se pudo obtener el correo del vendedor", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Email,
@@ -369,7 +466,37 @@ fun ProductDetailScreen(
                     // Botón de Teléfono
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea el Intent para abrir el Dial por defecto de Android
+                             * para realizar llamada con el número del vendedor cargado previamente,
+                             * agregar el contacto, o enviar un mensaje de texto.
+                             * */
+                            if (sellerPhone.isNotEmpty()) {
+                                /**
+                                 * Se normaliza el número de télefono, sabiendo que el mismo corresponde
+                                 * a Argentina
+                                 * */
+                                val normalizedPhone = normalizePhoneAR(sellerPhone)
+
+                                /**
+                                 * ACTION_DIAL abre el marcador con el número puesto
+                                 * pero no inicia la llamada automáticamente (es más seguro)
+                                 * */
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = "tel:$normalizedPhone".toUri()
+                                }
+
+                                // Abrir la pantalla para realizar llamada, agregar contacto o enviar mensaje de texto
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "No se pudo abrir el marcador", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "El vendedor no tiene teléfono registrado", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Phone,
@@ -381,7 +508,25 @@ fun ProductDetailScreen(
                     // Botón de Compartir
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { /* TODO: Implementar acción */ }
+                        modifier = Modifier.clickable {
+                            /**
+                             * Se crea un mensaje de texto formateado con la información esencial
+                             * del producto para compartirlo a través de apps externas (WhatsApp, Instagram, etc.)
+                             */
+                            // Verificar permisos antes de compartir
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                if (!PermissionManager.hasImagePermission(context)) {
+                                    // Solicitar permisos antes de compartir
+                                    permissionLauncher.launch(PermissionManager.getRequiredPermissions())
+                                } else {
+                                    // Ya tiene permisos, compartir directamente
+                                    shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+                                }
+                            } else {
+                                // Para versiones anteriores a Android 13, compartir directamente
+                                shareProductWithImageCompat(context, product, product.images, currentUserEmail)
+                            }
+                        }
                     ) {
                         Icon(
                             Icons.Filled.Share,
@@ -396,4 +541,143 @@ fun ProductDetailScreen(
             }
         }
     }
+}
+
+
+/**
+ * Comparte la información de un producto mediante un Intent, incluyendo opcionalmente
+ * una imagen, asegurando compatibilidad con distintas versiones de Android.
+ *
+ * Si existe al menos una imagen válida, se adjunta al contenido compartido usando
+ * un `FileProvider`. En caso contrario, se comparte únicamente el texto descriptivo
+ * del producto.
+ *
+ * @param context Contexto desde el cual se lanza el Intent de compartición.
+ * @param product Objeto [Product] que contiene la información principal del producto.
+ * @param productImages Lista de rutas de imágenes asociadas al producto.
+ *                      Se utilizará únicamente la primera imagen válida.
+ * @param currentUserEmail Correo electrónico del usuario actual (no utilizado
+ *                         directamente en la implementación actual, pero disponible
+ *                         para futuras extensiones).
+ */
+fun shareProductWithImageCompat(
+    context: Context,
+    product: Product,
+    productImages: List<String>,
+    currentUserEmail: String
+) {
+    // Se crea el texto descriptivo a compartir del producto
+    val shareText = """
+        ¡Mira lo que encontré en LocalHands! 
+        
+        🎁 Producto: *${product.name}*
+        💰 Precio: $${product.price}
+        📍 Ubicación: ${product.location}
+        👤 Vendedor: ${product.producer}
+        
+        Descripción: ${product.description}
+        
+        _Enviado desde "LocalHands"_
+    """.trimIndent()
+
+    // Se crea el Intent para compartir el producto a través del botón de Share
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        // Intentar adjuntar imagen
+        val imageUri = getImageUriForSharing(context, productImages)
+
+        if (imageUri != null) {
+            putExtra(Intent.EXTRA_STREAM, imageUri)
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "image/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } else {
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "text/plain"
+        }
+    }
+
+    val shareIntent = Intent.createChooser(sendIntent, "Compartir producto")
+
+    try {
+        context.startActivity(shareIntent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "No se pudo compartir", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Obtiene de forma segura un [Uri] compartible para la primera imagen válida
+ * de la lista proporcionada.
+ *
+ * La función:
+ * - Limpia el prefijo `file://` si existe en la ruta.
+ * - Verifica que el archivo exista físicamente.
+ * - Genera un `content://Uri` usando un [FileProvider] configurado en la aplicación.
+ *
+ * En caso de error o si no se encuentra una imagen válida, retorna `null`.
+ *
+ * @param context Contexto necesario para acceder al [FileProvider].
+ * @param productImages Lista de rutas de imágenes del producto.
+ * @return Un [Uri] seguro para compartir la imagen o `null` si no es posible obtenerlo.
+ */
+private fun getImageUriForSharing(context: Context, productImages: List<String>): Uri? {
+    return try {
+        productImages.firstOrNull()?.let { imagePath ->
+            val cleanedPath = if (imagePath.startsWith("file://")) {
+                imagePath.replace("file://", "")
+            } else {
+                imagePath
+            }
+
+            // Obtiene el archivo y, si existe, lo convierte a un Uri para utilizar el mismo en el compartido del Intent
+            val file = File(cleanedPath)
+            if (file.exists()) {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            } else {
+                null
+            }
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/**
+ * Normaliza un número telefónico argentino para uso local.
+ *
+ * Convierte formatos comunes (+54, 9, 0, espacios, guiones, paréntesis)
+ * a un número válido para el marcador telefónico nacional.
+ *
+ * Ejemplos:
+ * +54 9 11 3456-7890 → 1134567890
+ * 011 3456 7890     → 1134567890
+ *
+ * @param phone Número telefónico en formato libre.
+ * @return Número normalizado (solo dígitos) o cadena vacía si es inválido.
+ */
+fun normalizePhoneAR(phone: String): String {
+    // Eliminar todo lo que no sea dígito
+    var clean = phone.replace(Regex("[^0-9]"), "")
+
+    // Eliminar código país 54 si existe
+    if (clean.startsWith("54")) {
+        clean = clean.removePrefix("54")
+    }
+
+    // Eliminar 9 (usado para móviles internacionales)
+    if (clean.startsWith("9")) {
+        clean = clean.removePrefix("9")
+    }
+
+    // Eliminar 0 inicial del código de área
+    if (clean.startsWith("0")) {
+        clean = clean.removePrefix("0")
+    }
+
+    // Validación mínima (10 dígitos típico en AR)
+    return if (clean.length in 10..11) clean else ""
 }

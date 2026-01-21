@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.entity.User
 import com.undef.localhandsbrambillafunes.data.entity.UserRole
+import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -44,7 +46,8 @@ class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val sellerRepository: SellerRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val fileStorageManager: FileStorageManager
+    private val fileStorageManager: FileStorageManager,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
     // --------------------------------------------------
     // ESTADO DE EDICIÓN DEL PERFIL
@@ -274,7 +277,12 @@ class ProfileViewModel @Inject constructor(
      * y luego se sincroniza con la base de datos local.
      */
     private suspend fun saveSellerProfile() {
+        val oldEntrepreneurship = originalSeller?.entrepreneurship ?: ""
+        val newEntrepreneurship = editState.value.entrepreneurship
+
         Log.d("ProfileViewModel", "=== INICIO SAVE SELLER PROFILE ===")
+        Log.d("ProfileViewModel", "Entrepreneurship actual: $oldEntrepreneurship")
+        Log.d("ProfileViewModel", "Entrepreneurship nuevo: $newEntrepreneurship")
 
         // Obtener el usuario actualmente logueado
         val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: -1
@@ -325,6 +333,25 @@ class ProfileViewModel @Inject constructor(
         sellerRepository.updateSellerApi(sellerToUpdate).onSuccess {
             Log.d("ProfileViewModel", "Seller actualizado exitosamente en API")
 
+            Log.d("Emprendimiento nuevo a guardar en la API:", sellerToUpdate.entrepreneurship)
+
+            // Si cambió el nombre del emprendimiento, actualizar productos
+            if (oldEntrepreneurship != newEntrepreneurship && newEntrepreneurship.isNotBlank()) {
+                try {
+                    productRepository.updateProductsProducerByOwner(userId, newEntrepreneurship)
+
+                    delay(500) // Pequeño delay para asegurar que Room haya terminado
+                    Log.d("ProfileViewModel", "✅ Productos actualizados correctamente")
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Error actualizando productos", e)
+                }
+            }
+
+
+            // Actualizar DataStore con el nuevo entrepreneurship
+            userPreferencesRepository.saveUserEntrepreneurship(newEntrepreneurship)
+
+
             // Actualizar User en Room
             val userToUpdate = currentUser.copy(
                 name = editState.value.name,
@@ -372,6 +399,7 @@ class ProfileViewModel @Inject constructor(
 
         Log.d("ProfileViewModel", "=== FIN SAVE SELLER PROFILE ===")
     }
+
 
     // --- Funciones de ayuda y estado ---
 
@@ -699,7 +727,7 @@ class ProfileViewModel @Inject constructor(
      */
     fun logout() {
         viewModelScope.launch {
-            userPreferencesRepository.clearUserId()
+            userPreferencesRepository.clearUserSession()
         }
     }
 }

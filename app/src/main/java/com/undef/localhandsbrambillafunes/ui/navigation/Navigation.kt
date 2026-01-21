@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
@@ -25,6 +26,7 @@ import com.undef.localhandsbrambillafunes.ui.screens.splash.SplashScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.SellScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.EditProductScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.ProductOwnerDetailScreen
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 
 /**
@@ -163,11 +165,12 @@ fun Navigation() {
             arguments = listOf(navArgument("productId") { type = NavType.IntType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getInt("productId") ?: 0
+
             EditProductScreen(
                 navController = navController,
                 productId = productId,
                 productViewModel = hiltViewModel<ProductViewModel>(),
-                sessionViewModel = hiltViewModel<SessionViewModel>()
+                sellViewModel = hiltViewModel<SellViewModel>(),
             )
         }
 
@@ -185,11 +188,13 @@ fun Navigation() {
                 ProductOwnerDetailScreen(
                     navController = navController,
                     product = it,
+                    productId = productId,
                     onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(it.id)) },
                     onDelete = {
-                        productViewModel.deleteProduct(it)
+                        productViewModel.deleteProductSyncApi(it)
                         navController.popBackStack()
-                    }
+                    },
+                    productViewModel = productViewModel
                 )
             }
         }

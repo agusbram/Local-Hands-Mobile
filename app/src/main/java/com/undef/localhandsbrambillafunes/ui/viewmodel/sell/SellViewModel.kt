@@ -92,6 +92,83 @@ class SellViewModel @Inject constructor(
      */
     init {
         startPeriodicSync()
+        loadEntrepreneurshipFromDataStore()
+    }
+
+    /**
+     * Carga el nombre del emprendimiento almacenado en DataStore.
+     *
+     * Esta función se ejecuta en un contexto de corrutina asociado al
+     * ciclo de vida del ViewModel y actualiza el estado interno con el
+     * valor persistido, permitiendo que la UI refleje el dato guardado.
+     */
+    private fun loadEntrepreneurshipFromDataStore() {
+        viewModelScope.launch {
+            val entrepreneurship = userPreferencesRepository.getUserEntrepreneurship()
+            _entrepreneurshipName.value = entrepreneurship
+        }
+    }
+
+    /**
+     * Guarda el nombre del emprendimiento cuando un usuario se convierte en vendedor.
+     *
+     * El valor se persiste en DataStore y, simultáneamente, se actualiza
+     * el estado interno del ViewModel para reflejar el cambio de forma inmediata
+     * en la interfaz de usuario.
+     *
+     * @param entrepreneurship Nombre del emprendimiento a almacenar.
+     */
+    fun saveEntrepreneurship(entrepreneurship: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.saveUserEntrepreneurship(entrepreneurship)
+            _entrepreneurshipName.value = entrepreneurship
+        }
+    }
+
+    /**
+     * Obtiene el nombre del emprendimiento actualmente disponible para la UI.
+     *
+     * Este método devuelve el valor en memoria sin acceder a DataStore,
+     * por lo que es inmediato y no bloqueante.
+     *
+     * @return Nombre del emprendimiento cargado en el ViewModel.
+     */
+    fun getEntrepreneurshipForUI(): String {
+        // Esta función puede ser suspend si necesitas esperar
+        return _entrepreneurshipName.value
+    }
+
+    /**
+     * Fuerza la carga del nombre del emprendimiento desde DataStore.
+     *
+     * A diferencia de [getEntrepreneurshipForUI], este método accede
+     * explícitamente al almacenamiento persistente y sincroniza el valor
+     * recuperado con el estado interno del ViewModel.
+     *
+     * @return Nombre del emprendimiento obtenido desde DataStore.
+     */
+    suspend fun loadEntrepreneurshipForUI(): String {
+        return userPreferencesRepository.getUserEntrepreneurship().also {
+            _entrepreneurshipName.value = it
+        }
+    }
+
+    /**
+     * Refresca el nombre del emprendimiento desde DataStore.
+     *
+     * Resulta útil cuando el valor puede haber cambiado desde otra pantalla
+     * o flujo de la aplicación y se necesita asegurar que el estado del
+     * ViewModel esté actualizado.
+     */
+    fun refreshEntrepreneurship() {
+        loadEntrepreneurshipFromDataStore()
+    }
+
+    /**
+     * Limpia el estado del nombre del emprendimiento para nuevas conversiones.
+     */
+    fun resetConversionState() {
+        _entrepreneurshipName.value = ""
     }
 
     /**
@@ -185,7 +262,15 @@ class SellViewModel @Inject constructor(
                 // Llamar a la función del repositorio que hace la magia.
                 sellerRepository.convertToSeller(user, _entrepreneurshipName.value)
                     .onSuccess {
+                        // Guardar emprendimiento en DataStore
+                        userPreferencesRepository.saveUserEntrepreneurship(_entrepreneurshipName.value)
+
+                        // Actualizar estado local
+                        _entrepreneurshipName.value = _entrepreneurshipName.value
+
                         _status.value = SellerCreationStatus.SUCCESS
+
+                        resetConversionState()
                     }
                     .onFailure { error ->
                         throw error
@@ -195,6 +280,23 @@ class SellViewModel @Inject constructor(
                 _status.value = SellerCreationStatus.ERROR
             }
         }
+    }
+
+    /**
+     * Obtiene el vendedor asociado a un identificador específico.
+     *
+     * Esta función consulta el repositorio de vendedores y retorna un [Flow] que
+     * emite el objeto [Seller] correspondiente al `sellerId` indicado. El uso de
+     * [Flow] permite observar los cambios de forma reactiva, de modo que cualquier
+     * actualización en los datos del vendedor se reflejará automáticamente en los
+     * observadores.
+     *
+     * @param sellerId Identificador único del vendedor.
+     * @return Un [Flow] que emite el vendedor correspondiente al ID proporcionado,
+     *         o `null` si no existe un vendedor con dicho identificador.
+     */
+    fun getSellerEmailById(sellerId: Int): Flow<Seller?> {
+        return sellerRepository.getSellerById(sellerId)
     }
 
     /**

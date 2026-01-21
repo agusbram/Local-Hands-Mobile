@@ -1,6 +1,7 @@
 package com.undef.localhandsbrambillafunes.ui.screens.profile
 
 import android.net.Uri
+import android.util.Log
 
 import android.util.Patterns
 import android.widget.Toast
@@ -370,16 +371,34 @@ fun ProfileScreen(navController: NavController,
                         },
                     )
 
-                    // Campo editable del atributo email
-                    EditableProfileItem(
-                        label = "Correo Electrónico",
-                        value = editState.email,
-                        isValid = isEmailValid,
-                        onValueChange = { newValue ->
-                            val newState = editState.copy(email = newValue)
-                            profileViewModel.onFieldChange(newState)
+                    /**
+                     * Campo de correo electrónico
+                     * No es posible su modificación una vez creada la cuenta
+                     * */
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Correo Electrónico",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = MaterialTheme.shapes.small
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = editState.email,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
-                    )
+                    }
 
                     // Campo editable del atributo domicilio
                     EditableProfileItem(
@@ -447,23 +466,19 @@ fun ProfileScreen(navController: NavController,
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(12.dp))
 
                 // Texto clickeable para cambiar la contraseña
                 Text("Cambiar contraseña", color = Color.Blue, modifier = Modifier.clickable {
                     showPasswordDialog = true
                 })
 
-                // Texto clickeable para ver mis productos
-                Text("Mis productos", color = Color.Blue, modifier = Modifier.clickable {
-                    Toast.makeText(context, "Mis productos (futuro)", Toast.LENGTH_SHORT).show()
-                })
                 // Texto clickeable para eliminar la cuenta
                 Text("Eliminar cuenta", color = Color.Red, modifier = Modifier.clickable {
                     showDeleteConfirmDialog = true
                 })
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(12.dp))
 
                 // Botón para guardar cambios
                 Button(
@@ -644,22 +659,24 @@ fun isValidEmail(email: String): Boolean {
 }
 
 /**
- * Valida que un número de teléfono tenga un formato aceptable.
+ * Valida si un número de teléfono es válido según una regla básica de longitud.
  *
- * El proceso de validación:
- * - Elimina todos los caracteres que no sean numéricos
- * - Verifica que la longitud resultante sea válida para Argentina
- *   (entre 10 y 15 dígitos, incluyendo prefijos)
+ * El método elimina espacios en blanco y descarta cualquier carácter
+ * que no sea un dígito, permitiendo ingresar el teléfono con separadores
+ * como espacios, guiones o paréntesis.
  *
- * @param phone Número de teléfono a validar.
- * @return `true` si el número cumple con el formato esperado,
+ * Un número se considera válido si, luego de la normalización,
+ * contiene entre 10 y 15 dígitos inclusive.
+ *
+ * @param phone Cadena que representa el número de teléfono a validar.
+ * @return `true` si el número contiene una cantidad válida de dígitos,
  *         `false` en caso contrario.
  */
 fun isValidPhone(phone: String): Boolean {
-    // Elimina todo lo que no sea número
-    val digitsOnly = phone.filter { it.isDigit() }
+    val digitsOnly = phone
+        .trim()
+        .filter { it.isDigit() }
 
-    // Argentina: mínimo 10 dígitos, máximo 15 (con prefijos)
     return digitsOnly.length in 10..15
 }
 

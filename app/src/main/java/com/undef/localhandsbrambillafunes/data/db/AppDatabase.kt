@@ -25,7 +25,7 @@ import com.undef.localhandsbrambillafunes.data.entity.Seller
  */
 @Database(
     entities = [User::class, Product::class, Favorite::class, Seller::class], // Entidades
-    version = 3, // Incrementar cuando se modifique el esquema
+    version = 2, // Incrementar cuando se modifique el esquema
     exportSchema = true // Exportar el esquema
 )
 @TypeConverters(Converters::class) //Para cargar List<String> de Product
