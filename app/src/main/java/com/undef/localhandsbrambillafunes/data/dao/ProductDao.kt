@@ -26,11 +26,28 @@ interface ProductDao {
     fun getAllProducts(): Flow<List<Product>>
 
     /**
+     * Obtiene una lista de todos los nombres de categorías únicos de la base de datos.
+     *
+     * @return Un [Flow] que emite una lista de [String] con los nombres de las categorías.
+     */
+    @Query("SELECT DISTINCT category FROM ProductEntity ORDER BY category ASC")
+    fun getAllCategories(): Flow<List<String>>
+
+    /**
+     * Obtiene una lista reactiva de productos que pertenecen a una categoría específica.
+     *
+     * @param category El nombre de la categoría para filtrar los productos.
+     * @return Un [Flow] que emite la lista de productos de esa categoría.
+     */
+    @Query("SELECT * FROM ProductEntity WHERE category = :category")
+    fun getProductsByCategory(category: String): Flow<List<Product>>
+
+    /**
      * Consulta SQL para insertar un producto en la tabla de la base de datos
      * @param product Producto a insertar.
      * @return ID generado del producto insertado.
      */
-    @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addProduct(product: Product): Long
 
     /**
@@ -121,6 +138,6 @@ interface ProductDao {
      * Inserta una lista de productos en la base de datos, reemplazando los existentes si hay conflictos.
      * Requerido cuando se sincronizan datos desde el servidor
      */
-    @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(products: List<Product>)
 }
