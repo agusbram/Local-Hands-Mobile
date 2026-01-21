@@ -2,6 +2,7 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,8 +22,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val productRepository: ProductRepository,
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
+
+    // --- Ubicación del Usuario ---
 
     /**
      * Estado observable que representa la ubicación actual del usuario.
@@ -39,7 +43,7 @@ class SettingsViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = "Rosario, Santa Fe" // Valor inicial mientras se carga el real
+            initialValue = ""
         )
 
     /**
@@ -53,6 +57,46 @@ class SettingsViewModel @Inject constructor(
     fun updateUserLocation(newLocation: String) {
         viewModelScope.launch {
             userPreferencesRepository.saveUserLocation(newLocation)
+        }
+    }
+
+    // --- Categorías Favoritas ---
+
+    /**
+     * Flujo que expone la lista de todas las categorías disponibles en la app.
+     */
+    val allCategories: StateFlow<List<String>> = productRepository.getAllCategories()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Flujo que expone el conjunto de categorías que el usuario ha marcado como favoritas.
+     */
+    val favoriteCategories: StateFlow<Set<String>> = userPreferencesRepository.favoriteCategoriesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
+    /**
+     * Actualiza las categorías favoritas del usuario.
+     * Añade o elimina una categoría del conjunto guardado en DataStore.
+     * @param categoryName El nombre de la categoría a modificar.
+     * @param isSelected Si la categoría debe ser añadida o eliminada.
+     */
+    fun updateFavoriteCategory(categoryName: String, isSelected: Boolean) {
+        viewModelScope.launch {
+            val currentFavorites = favoriteCategories.value.toMutableSet()
+            if (isSelected) {
+                currentFavorites.add(categoryName)
+            } else {
+                currentFavorites.remove(categoryName)
+            }
+            userPreferencesRepository.saveFavoriteCategories(currentFavorites)
         }
     }
 }

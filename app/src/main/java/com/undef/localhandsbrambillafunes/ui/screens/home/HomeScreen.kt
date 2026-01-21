@@ -17,8 +17,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
+
 /**
  * Pantalla principal de la aplicación.
  *
@@ -66,12 +69,13 @@ import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController,
-               productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
-               sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
+fun HomeScreen(
+    navController: NavController,
+    productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
 ) {
-    // Estado reactivo que contiene la lista de productos
-    val products by productViewModel.products.collectAsState()
+    // Observamos el nuevo estado de la pantalla principal que ya viene agrupado
+    val homeState by productViewModel.homeScreenState.collectAsState()
 
     // Controla la visualización del flujo de conversión a vendedor
     var showSellDialog by remember { mutableStateOf(false) }
@@ -133,14 +137,12 @@ fun HomeScreen(navController: NavController,
                     IconButton(onClick = { navController.navigate(route = AppScreens.SearchBarScreen.route) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Buscar")
                     }
-
                     /**
                      * Botón de perfil que navega a la pantalla de perfil
                      */
                     IconButton(onClick = { navController.navigate(route = AppScreens.ProfileScreen.route) }) {
                         Icon(Icons.Filled.Person, contentDescription = "Sección de Perfil")
                     }
-
                     /**
                      * Botón de configuración que navega a la pantalla de ajustes
                      */
@@ -180,23 +182,23 @@ fun HomeScreen(navController: NavController,
                  */
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio")},
+                    label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { /* Implementar navegación a Home */ }
+                    selected = true, // Correcto: esta es la pantalla de inicio
+                    onClick = { /* No hacer nada, ya estamos aquí */ }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
-                    label = { Text("Favoritos")},
+                    label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.FavoritesScreen.route) }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Shop, contentDescription = "Vender") },
-                    label = { Text("Vender")},
+                    label = { Text("Vender") },
                     colors = navBarItemColors,
                     selected = false,
                     onClick = { showSellDialog = true }
@@ -204,9 +206,9 @@ fun HomeScreen(navController: NavController,
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Menu, contentDescription = "Categorias") },
-                    label = { Text("Categorías")},
+                    label = { Text("Categorías") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.CategoryScreen.route) }
                 )
             }
@@ -223,20 +225,38 @@ fun HomeScreen(navController: NavController,
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
-            // Encabezado de sección
-            item {
-                Text(
-                    text = "Productos Destacados",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+            // Renderizamos las categorías favoritas primero
+            homeState.favoriteProducts.forEach { (category, products) ->
+                // Título de la categoría favorita
+                item {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                // Lista de productos para esa categoría
+                items(items = products, key = { "fav-" + it.id }) { product ->
+                    ProductListItem(product = product, navController = navController)
+                }
+                // Separador
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
+                }
             }
 
-            // Lista de productos
-            items(
-                items = products,
-                key = { it.id } // Clave única para cada producto
-            ) { product ->
-                ProductListItem(product = product, navController = navController)
+            // Renderizamos el resto de los productos
+            if (homeState.otherProducts.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Productos Destacados",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                items(items = homeState.otherProducts, key = { "other-" + it.id }) { product ->
+                    ProductListItem(product = product, navController = navController)
+                }
             }
         }
     }
@@ -251,6 +271,4 @@ fun HomeScreen(navController: NavController,
             onDismiss = { showSellDialog = false }
         )
     }
-
 }
-

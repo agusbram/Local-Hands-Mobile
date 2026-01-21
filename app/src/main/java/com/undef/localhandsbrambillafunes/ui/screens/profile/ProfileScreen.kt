@@ -423,9 +423,9 @@ fun ProfileScreen(navController: NavController,
                     )
 
                     /**
-                    * Campo de ciudad actual.
+                     * Campo de ciudad actual.
                      * Solamente modificable desde la pantalla de configuración
-                    * */
+                     * */
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "Ciudad",

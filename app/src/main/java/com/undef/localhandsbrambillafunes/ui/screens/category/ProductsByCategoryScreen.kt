@@ -1,4 +1,4 @@
-package com.undef.localhandsbrambillafunes.ui.screens.home.components
+package com.undef.localhandsbrambillafunes.ui.screens.category
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -10,9 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,51 +30,41 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.undef.localhandsbrambillafunes.data.model.CategoryListItem
+import com.undef.localhandsbrambillafunes.data.model.ProductListItem
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.category.CategoryViewModel
 
-
-/**
- * Pantalla que muestra la lista de categorías disponibles.
- *
- * @param navController Controlador de navegación para manejar la navegación entre pantallas.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoryScreen(
+fun ProductsByCategoryScreen(
     navController: NavController,
+    categoryName: String,
     categoryViewModel: CategoryViewModel = hiltViewModel()
 ) {
-    // Recolectamos la lista de categorías desde el ViewModel
-    val categories by categoryViewModel.categories.collectAsState()
+    // Obtenemos el flujo de productos para la categoría específica y lo observamos
+    val products by categoryViewModel.getProductsByCategory(categoryName).collectAsState()
 
     Scaffold(
-        // Barra Superior con título y acciones
         topBar = {
             TopAppBar(
-                // Boton para volver a la pantalla anterior
                 title = {
-                    Row (verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Botón para volver a la pantalla anterior
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 Icons.Filled.ArrowBackIosNew,
                                 contentDescription = "Volver Atras"
                             )
                         }
-                        Text("Categorías") // Título de la pantalla
+                        // Título de la pantalla con el nombre de la categoría
+                        Text(categoryName)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF242424),
                     titleContentColor = Color.White,
                     actionIconContentColor = Color.White
-                ),
-                actions = {
-                    IconButton(onClick = { navController.navigate(AppScreens.SearchBarScreen.route)}) {
-                        Icon(Icons.Filled.Search, contentDescription = "Buscar")
-                    }
-                }
+                )
             )
         },
         bottomBar = {
@@ -97,14 +84,14 @@ fun CategoryScreen(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
                     label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = false,
+                    selected = false, // No estamos en Home
                     onClick = { navController.navigate(route = AppScreens.HomeScreen.route) }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
                     label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = false,
+                    selected = false, // No estamos en Favoritos
                     onClick = { navController.navigate(AppScreens.FavoritesScreen.route) }
                 )
             }
@@ -114,23 +101,23 @@ fun CategoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item {
-                Text(
-                    text = "Explora nuestros productos por categoría",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
-            // Usamos la lista de categorías del ViewModel
-            items(categories, key = { it }) { categoryName ->
-                CategoryListItem(
-                    categoryName = categoryName,
-                    navController = navController
-                )
+            // Si la lista no está vacía, muestra los productos
+            if (products.isNotEmpty()) {
+                items(products, key = { it.id }) { product ->
+                    ProductListItem(product = product, navController = navController)
+                }
+            } else {
+                // Mensaje para cuando no hay productos en la categoría
+                item {
+                    Text(
+                        text = "No hay productos en esta categoría por el momento.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }
