@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.text.clear
 
 /**
  * Extensión de [Context] que define una única instancia de [DataStore].
@@ -54,6 +54,30 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
          * Clave utilizada para almacenar el emprendimiento del vendedor actualmente logueado.
          */
         val USER_ENTREPRENEURSHIP = stringPreferencesKey("user_entrepreneurship")
+
+        /**
+         * Clave para almacenar el conjunto de categorías favoritas del usuario.
+         */
+        val FAVORITE_CATEGORIES = stringSetPreferencesKey("favorite_categories")
+    }
+
+    /**
+     * Flujo reactivo que expone las categorías favoritas del usuario.
+     * Emite un conjunto de strings. Si no hay nada guardado, emite un conjunto vacío.
+     */
+    val favoriteCategoriesFlow: Flow<Set<String>> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.FAVORITE_CATEGORIES] ?: emptySet()
+        }
+
+    /**
+     * Guarda el conjunto de categorías favoritas del usuario.
+     * @param categories Un conjunto de strings con los nombres de las categorías.
+     */
+    suspend fun saveFavoriteCategories(categories: Set<String>) {
+        context.dataStore.edit {
+            it[PreferencesKeys.FAVORITE_CATEGORIES] = categories
+        }
     }
 
     /**

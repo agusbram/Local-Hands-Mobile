@@ -8,6 +8,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -77,7 +79,6 @@ fun SettingsScreen(navController: NavController,
 ) {
     // Se lee la ciudad seleccionada por el usuario en tiempo real a través del ViewModel
     val selectedCity by settingsViewModel.userLocation.collectAsState()
-    //var selectedCity by remember { mutableStateOf("Rosario, Santa Fe") }
     var selectedFrequency by remember { mutableStateOf("Una vez al día") }
 
     // Estado para manejar el diálogo de convertirse en vendedor
@@ -182,7 +183,7 @@ fun SettingsScreen(navController: NavController,
 
                 Text("Preferencias de búsqueda", style = MaterialTheme.typography.titleMedium)
 
-                FavoriteCategoriesSection()
+                FavoriteCategoriesSection(settingsViewModel = settingsViewModel)
 
                 /*Desplegable para seleccionar la ubicacion por defecto*/
                 DropdownUbication (
@@ -248,36 +249,35 @@ fun SettingsScreen(navController: NavController,
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FavoriteCategoriesSection() {
-    // Estado de cada categoría para poder hacer interactivo cada chip botón
-    var foodSelected by remember { mutableStateOf(true) }
-    var textilesSelected by remember { mutableStateOf(true) }
-    var craftsSelected by remember { mutableStateOf(false) }
-    var cosmeticsSelected by remember { mutableStateOf(false) }
+fun FavoriteCategoriesSection(settingsViewModel: SettingsViewModel) {
+    // Observamos los dos flujos desde el ViewModel
+    val allCategories by settingsViewModel.allCategories.collectAsState()
+    val favoriteCategories by settingsViewModel.favoriteCategories.collectAsState()
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally //Centramos horizontalmente todo el contenido de las categorias favoritas
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Categorías favoritas", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Row(modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.Center) { //Forzamos el centrado de los chips interactivos horizontalmente
-            CategoryChip("Alimentos", foodSelected) { foodSelected = !foodSelected } //Para hacer que sean interactivos utilizamos la funcion lambda
-            CategoryChip("Textiles", textilesSelected) { textilesSelected = !textilesSelected }
-        }
-
-        Row(modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
+        // FlowRow permite que los elementos fluyan a la siguiente línea si no hay espacio
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
         ) {
-            CategoryChip("Artesanías", craftsSelected) { craftsSelected = !craftsSelected }
-            CategoryChip("Cosmética", cosmeticsSelected) { cosmeticsSelected = !cosmeticsSelected }
+            // Creamos un Chip para cada categoría disponible
+            allCategories.forEach { categoryName ->
+                val isSelected = categoryName in favoriteCategories
+                CategoryChip(categoryName, isSelected) {
+                    // Al hacer clic, llamamos al ViewModel para que actualice la preferencia
+                    settingsViewModel.updateFavoriteCategory(categoryName, !isSelected)
+                }
+            }
         }
     }
 }
@@ -285,16 +285,16 @@ fun FavoriteCategoriesSection() {
 @Composable
 fun CategoryChip(text: String, selected: Boolean, onToggle: () -> Unit) {
     androidx.compose.material3.Surface (
-        color = if (selected) Color(0xFF81C784) else Color.Gray, //Cambia el color del chip que fue seleccionado
+        color = if (selected) Color(0xFF81C784) else Color.Gray,
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
-            .padding(end = 8.dp)
+            .padding(4.dp) // Un padding más pequeño para que quepan más chips
             .clickable { onToggle() }
     ) {
         Text(
             text = text,
             color = Color.White,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
     }
 }
@@ -473,5 +473,4 @@ fun AlertsSwitchFavorites() {
         }
     )
 }
-
 
