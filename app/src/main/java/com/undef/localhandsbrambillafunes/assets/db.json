@@ -29,100 +29,134 @@
       "address": "San Luis 789, Rosario",
       "entrepreneurship": "Huerta La Orgánica",
       "photoUrl": "https://picsum.photos/id/1084/200/200"
+    },
+    {
+      "address": "La Madrid",
+      "email": "saibotfu122@gmail.com",
+      "entrepreneurship": "Dulce de Melon",
+      "id": 5,
+      "lastname": "Funes",
+      "name": "Tobias",
+      "phone": "1111111111"
     }
   ],
   "products": [
     {
       "id": 1,
       "name": "Taza de Cerámica Artesanal",
-      "description": "Taza de cerámica hecha y pintada a mano, ideal para tu café matutino. Cada pieza es única. Capacidad: 300ml.",
+      "description": "Taza de cerámica hecha y pintada a mano, ideal para tu café matutino.",
       "producer": "Cerámicas del Sol",
       "category": "Artesanías",
       "ownerId": 1,
       "images": [
-        "https://picsum.photos/id/22/400/300",
-        "https://picsum.photos/id/24/400/300"
+        "https://picsum.photos/id/22/400/300"
       ],
-      "price": 2500.0,
+      "price": 2500,
       "location": "Córdoba"
     },
     {
       "id": 2,
       "name": "Maceta Colgante de Barro",
-      "description": "Maceta de barro cocido con diseño rústico, perfecta para plantas de interior y exterior. No incluye planta.",
+      "description": "Maceta de barro cocido con diseño rústico, perfecta para plantas.",
       "producer": "Cerámicas del Sol",
       "category": "Artesanías",
       "ownerId": 1,
       "images": [
         "https://picsum.photos/id/1078/400/300"
       ],
-      "price": 3800.50,
+      "price": 3800.5,
       "location": "Córdoba"
     },
     {
       "id": 3,
       "name": "Bufanda de Lana de Llama",
-      "description": "Bufanda unisex tejida a mano con 100% lana de llama. Suave, abrigada y duradera. Colores naturales.",
+      "description": "Bufanda unisex tejida a mano con 100% lana de llama. Suave y abrigada.",
       "producer": "Tejidos del Alma",
       "category": "Textiles",
       "ownerId": 2,
       "images": [
         "https://picsum.photos/id/145/400/300"
       ],
-      "price": 9500.0,
+      "price": 9500,
       "location": "Buenos Aires"
     },
     {
       "id": 4,
       "name": "Gorro Tejido a Dos Agujas",
-      "description": "Gorro de lana con pompón, disponible en varios colores. Tejido a mano con mucho amor.",
+      "description": "Gorro de lana con pompón, disponible en varios colores.",
       "producer": "Tejidos del Alma",
       "category": "Textiles",
       "ownerId": 2,
       "images": [
         "https://picsum.photos/id/563/400/300"
       ],
-      "price": 4200.0,
+      "price": 4200,
       "location": "Buenos Aires"
     },
     {
       "id": 5,
-      "name": "Canasta de Verduras de Estación",
-      "description": "1kg de verduras frescas y orgánicas de nuestra huerta. Incluye lechuga, tomate, rúcula y más, según disponibilidad.",
+      "name": "Canasta de Verduras Orgánicas",
+      "description": "1kg de verduras frescas y orgánicas de nuestra huerta.",
       "producer": "Huerta La Orgánica",
       "category": "Alimentos",
       "ownerId": 3,
       "images": [
         "https://picsum.photos/id/1080/400/300"
       ],
-      "price": 3200.0,
+      "price": 3200,
       "location": "Rosario"
     },
     {
       "id": 6,
       "name": "Miel Pura de Campo (500g)",
-      "description": "Frasco de 500g de miel pura de abejas de campo, sin aditivos ni conservantes. Cosecha propia.",
+      "description": "Frasco de 500g de miel pura de abejas de campo, sin aditivos.",
       "producer": "Huerta La Orgánica",
       "category": "Alimentos",
       "ownerId": 3,
       "images": [
         "https://picsum.photos/id/135/400/300"
       ],
-      "price": 2800.0,
+      "price": 2800,
       "location": "Rosario"
     },
     {
       "id": 7,
       "name": "Jabón de Lavanda y Karité",
-      "description": "Jabón natural y vegano hecho con aceite de coco, manteca de karité y aceite esencial de lavanda. Relajante e hidratante.",
+      "description": "Jabón natural y vegano hecho con aceite de coco y manteca de karité.",
       "producer": "Cerámicas del Sol",
       "category": "Cosmética Natural",
       "ownerId": 1,
       "images": [
         "https://picsum.photos/id/312/400/300"
       ],
-      "price": 1800.0,
+      "price": 1800,
       "location": "Córdoba"
+    },
+    {
+      "id": 8,
+      "name": "Cuadro Decorativo Abstracto",
+      "description": "Pintura abstracta sobre lienzo, 50x70cm. Aporta un toque moderno a tu espacio.",
+      "producer": "Tejidos del Alma",
+      "category": "Decoración",
+      "ownerId": 2,
+      "images": [
+        "https://picsum.photos/id/129/400/300"
+      ],
+      "price": 12500,
+      "location": "Buenos Aires"
+    },
+    {
+      "id": 9,
+      "name": "Clase de Cocina Online",
+      "description": "Clase de 2 horas vía Zoom para aprender a hacer pan de masa madre.",
+      "producer": "Huerta La Orgánica",
+      "category": "Servicios",
+      "ownerId": 3,
+      "images": [
+        "https://picsum.photos/id/42/400/300"
+      ],
+      "price": 7500,
+      "location": "Rosario"
     }
   ]
 }
