@@ -25,10 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,14 +34,24 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.data.model.CategoryListItem
-import com.undef.localhandsbrambillafunes.data.model.CategoryProvider
-import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
-import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.category.CategoryViewModel
 
+
+/**
+ * Pantalla que muestra la lista de categorías disponibles.
+ *
+ * @param navController Controlador de navegación para manejar la navegación entre pantallas.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoryScreen(navController: NavController) {
+fun CategoryScreen(
+    navController: NavController,
+    categoryViewModel: CategoryViewModel = hiltViewModel()
+) {
+    // Recolectamos la lista de categorías desde el ViewModel
+    val categories by categoryViewModel.categories.collectAsState()
+
     Scaffold(
         // Barra Superior con título y acciones
         topBar = {
@@ -57,105 +65,73 @@ fun CategoryScreen(navController: NavController) {
                                 contentDescription = "Volver Atras"
                             )
                         }
+                        Text("Categorías") // Título de la pantalla
                     }
                 },
-                // Colores para la barra superior
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF242424),  // Color de fondo
-                    titleContentColor = Color.White,      // Color del texto
-                    actionIconContentColor = Color.White  // Color de los iconos de acción
+                    containerColor = Color(0xFF242424),
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 ),
                 actions = {
-                    // Botón para Buscar
                     IconButton(onClick = { navController.navigate(AppScreens.SearchBarScreen.route)}) {
-                        Icon(
-                            Icons.Filled.Search,
-                            contentDescription = "Buscar"
-                        )
-                    }
-
-                    // Botón para ir a Perfil
-                    IconButton(onClick = { navController.navigate(route = AppScreens.ProfileScreen.route) }) {
-                        Icon(
-                            Icons.Filled.Person,
-                            contentDescription = "Seccion de Perfil"
-                        )
-                    }
-
-                    // Botón para ir a Configuración
-                    IconButton(onClick = { navController.navigate(route = AppScreens.SettingsScreen.route) }) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = "Seccion de Settings"
-                        )
+                        Icon(Icons.Filled.Search, contentDescription = "Buscar")
                     }
                 }
             )
         },
-
-        // Implementacion para Material3:
-        // Barra inferior con navegacion principal
         bottomBar = {
-            // Navegacion inferior con iconos
             NavigationBar(
                 containerColor = Color(0xFF242424),
                 contentColor = Color.White
             ) {
-
-                // Esquema de color para los diferentes estados de los botones
                 val navBarItemColors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,      // Ícono seleccionado
-                    unselectedIconColor = Color.White,     // Ícono no seleccionado
-                    selectedTextColor = Color.White,      // Texto seleccionado
-                    unselectedTextColor = Color.White,      // Texto no seleccionado
-                    indicatorColor = Color.Transparent     // Quitar el recuadro
+                    selectedIconColor = Color.White,
+                    unselectedIconColor = Color.White,
+                    selectedTextColor = Color.White,
+                    unselectedTextColor = Color.White,
+                    indicatorColor = Color.Transparent
                 )
 
-                // Boton de Home o inicio
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
                     label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.HomeScreen.route) }
                 )
-                // Boton de explorar o buscar
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
                     label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(AppScreens.FavoritesScreen.route) }
                 )
             }
-
         }
-
     ) { paddingValues ->
-        val categories = remember { CategoryProvider.categories }
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 Text(
-                    text = "Categorías actuales",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Explora nuestros productos por categoría",
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
-            items(categories, key = { it.id }) { category ->
+            // Usamos la lista de categorías del ViewModel
+            items(categories, key = { it }) { categoryName ->
                 CategoryListItem(
-                    category = category,
+                    categoryName = categoryName,
                     navController = navController
                 )
             }
         }
     }
 }
-

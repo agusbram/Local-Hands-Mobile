@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.undef.localhandsbrambillafunes.ui.screens.category.ProductsByCategoryScreen
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
@@ -187,11 +188,11 @@ fun Navigation() {
             product?.let { productDetails -> // Se usa 'productDetails' para mayor claridad
                 ProductOwnerDetailScreen(
                     navController = navController,
-                    product = productDetails, // CORREGIDO
+                    product = productDetails,
                     productId = productId,
-                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) }, // CORREGIDO
+                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) },
                     onDelete = {
-                        productViewModel.deleteProductSyncApi(productDetails) // CORREGIDO
+                        productViewModel.deleteProductSyncApi(productDetails)
                         navController.popBackStack()
                     },
                     productViewModel = productViewModel
@@ -199,5 +200,19 @@ fun Navigation() {
             }
         }
 
+        /**
+         * Pantalla que muestra la lista de productos para una categoría específica.
+         */
+        composable(
+            route = AppScreens.ProductsByCategoryScreen.route, // Usamos la nueva ruta
+            arguments = listOf(navArgument("categoryName") { type = NavType.StringType }) // Espera un String
+        ) { backStackEntry ->
+            // Extraemos el nombre de la categoría de los argumentos de la ruta
+            val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
+            ProductsByCategoryScreen(
+                navController = navController,
+                categoryName = categoryName
+            )
+        }
     }
 }
