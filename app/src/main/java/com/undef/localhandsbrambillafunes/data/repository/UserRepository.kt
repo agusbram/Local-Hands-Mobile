@@ -1,70 +1,93 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
 import android.util.Log
+import at.favre.lib.crypto.bcrypt.BCrypt
 import com.undef.localhandsbrambillafunes.data.dao.SellerDao
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
-import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.entity.User
-import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- * Repositorio que actúa como intermediario entre la capa de datos (DAO) y la lógica de negocio.
+ * Repositorio que actúa como intermediario entre la capa de datos (DAO, API) y la lógica de negocio del usuario.
  *
  * Proporciona una interfaz abstracta para acceder a operaciones relacionadas con usuarios,
- * y delega las llamadas al [UserDao].
- *
- * @property userDao Objeto DAO que proporciona acceso a los métodos de la base de datos.
+ * y delega las llamadas a la capa de datos correspondiente, manejando la lógica de
+ * autenticación, sesión y eliminación de cuentas.
  */
+@Singleton
 class UserRepository @Inject constructor(
     private val userDao: UserDao,
-    private val authRepository: AuthRepository,
     private val apiService: ApiService,
-    private val sellerDao: SellerDao
+    private val sellerDao: SellerDao,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) {
+
     /**
-     * Actualiza los datos de un usuario existente.
+     * Actualiza los datos de un usuario existente en la base de datos local.
      *
-     * @param user Usuario actualizado.
+     * @param user El objeto [User] con la información actualizada.
      */
     suspend fun updateUser(user: User) {
         userDao.updateUser(user)
     }
 
     /**
-     * Obtiene un usuario por su ID.
+     * Obtiene un usuario por su ID como un flujo reactivo.
+     * Ideal para observar cambios en la UI.
      *
-     * @param id ID del usuario.
-     * @return Instancia de [User], o `null` si no se encuentra.
+     * @param id El ID del usuario a buscar.
+     * @return Un [Flow] que emite el [User] o `null` si no se encuentra.
      */
-    suspend fun getUserById(): User {
-        val currentUserId = authRepository.getCurrentUserId()!!
-
-        return userDao.getUserById(currentUserId)
+    fun getUserById(id: Int): Flow<User?> {
+        return userDao.getUserByIdFlow(id)
     }
 
     /**
-     * Obtiene un usuario por su ID sin utilizar Flow.
+     * Obtiene un usuario por su ID de forma no reactiva para operaciones puntuales.
      *
-     * Útil para operaciones puntuales donde no se requiere observar cambios en tiempo real,
-     * como validaciones o actualizaciones específicas.
-     *
-     * @param userId Identificador único del usuario.
-     * @return Instancia de [User] si existe, o `null` en caso contrario.
+     * @param userId El ID del usuario a buscar.
+     * @return El objeto [User] o `null` si no se encuentra.
      */
     suspend fun getUserByIdNonFlow(userId: Int): User? {
         return userDao.getUserByIdNonFlow(userId)
     }
 
     /**
-     * Obtiene un usuario por su ID.
-     * Es necesario el Flow para que la UI reacciones a los cambios en la BD en tiempo real
-     * @param id ID del usuario.
-     * @return Instancia Flow de [User], o `null` si no se encuentra.
+     * Actualiza la contraseña del usuario actual en la base de datos.
+     * La nueva contraseña se hashea con BCrypt antes de ser guardada.
+     *
+     * @param newPassword La nueva contraseña en texto plano.
      */
-    fun getUserById(id: Int): Flow<User?> {
-        return userDao.getUserByIdFlow(id)
+    suspend fun updateUserPassword(newPassword: String) {
+        val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return
+        val user = getUserByIdNonFlow(userId)
+        if (user != null) {
+            val hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
+            userDao.updatePassword(user.email, hashedPassword)
+        }
+    }
+
+    /**
+     * Cierra la sesión del usuario actual.
+     * Esto se logra limpiando los datos de sesión almacenados en [UserPreferencesRepository].
+     */
+    suspend fun logout() {
+        // CORREGIDO: El nombre correcto de la función es clearUserSession.
+        userPreferencesRepository.clearUserSession()
+    }
+
+    /**
+     * Elimina la cuenta del usuario actual del sistema.
+     * Orquesta la eliminación de todos los datos asociados al usuario y luego cierra la sesión.
+     */
+    suspend fun deleteUserAccount() {
+        val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: return
+        deleteUserAndAssociatedData(userId)
+        logout() // Cierra la sesión después de eliminar la cuenta
     }
 
     /**

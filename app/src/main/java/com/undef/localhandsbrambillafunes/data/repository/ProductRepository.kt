@@ -278,6 +278,16 @@ class ProductRepository @Inject constructor(
     }
 
     /**
+     * Obtiene una lista de todos los nombres de categorías únicos como un flujo reactivo.
+     */
+    fun getAllCategories(): Flow<List<String>> = productDao.getAllCategories()
+
+    /**
+     * Obtiene una lista reactiva de productos que pertenecen a una categoría específica.
+     */
+    fun getProductsByCategory(category: String): Flow<List<Product>> = productDao.getProductsByCategory(category)
+
+    /**
      * Busca productos en la base de datos local según un criterio de texto.
      *
      * Esta función realiza una búsqueda reactiva sobre los productos almacenados,
@@ -289,7 +299,7 @@ class ProductRepository @Inject constructor(
      * la categoría, el vendedor y la ciudad.
      *
      * @param query Texto utilizado como criterio de búsqueda.
-     * @return Un [Flow] que emite listas de productos que coinciden con el criterio.
+     * @return Un [Flow] que emite una lista de productos que coinciden con el criterio.
      */
     fun searchProducts(query: String): Flow<List<Product>> {
         return productDao.searchProducts(query)
