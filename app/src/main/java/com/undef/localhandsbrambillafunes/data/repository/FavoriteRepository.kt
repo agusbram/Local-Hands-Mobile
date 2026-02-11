@@ -17,7 +17,7 @@ import javax.inject.Inject
  */
 class FavoriteRepository @Inject constructor(
     private val favoriteDao: FavoriteDao,
-    private val authRepository: AuthRepository // Añadir dependencia
+    private val authRepository: AuthRepository
 ) {
 
     /**
@@ -39,7 +39,7 @@ class FavoriteRepository @Inject constructor(
         val currentUserId = authRepository.getCurrentUserId()
             ?: throw NotAuthenticatedException("User not logged in")
 
-        favoriteDao.removeFavoriteByUserAndProduct(currentUserId, productId)
+        favoriteDao.removeFavByUserAndProduct(currentUserId, productId)
     }
 
     /**

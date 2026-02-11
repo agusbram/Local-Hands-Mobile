@@ -5,9 +5,8 @@ package com.undef.localhandsbrambillafunes.ui.navigation
  * Cada pantalla se representa como un objeto que hereda de esta clase.
  *
  * @param route String que define la ruta de navegación para la pantalla.
-*/
+ */
 sealed class AppScreens(val route: String) {
-
     // Objetos que representan las pantallas de la aplicación
 
     // Pantalla de inicio/splash que se muestra al arrancar la aplicación.
@@ -31,18 +30,6 @@ sealed class AppScreens(val route: String) {
     // Pantalla de perfil del usuario.
     object ProfileScreen: AppScreens("profile_screen")
 
-    // Pantalla de detalle de producto que recibe un ID de producto como parámetro.
-    object ProductDetailScreen : AppScreens("product_detail_screen/{productId}") {
-
-        /**
-         * Función auxiliar para construir la ruta con el ID del producto.
-         *
-         * @param productId ID del producto a mostrar.
-         * @return String con la ruta completa incluyendo el ID del producto.
-         */
-        fun createRoute(productId: Int) = "product_detail_screen/$productId"
-    }
-
     // Pantalla de categorías de productos.
     object CategoryScreen: AppScreens("category_screen")
 
@@ -56,12 +43,29 @@ sealed class AppScreens(val route: String) {
     object SellScreen: AppScreens("sell_screen")
 
     // Pantalla para editar productos
-    object EditProductScreen: AppScreens("edit_product_screen/{productId}") {
+    object EditProductScreen: AppScreens("edit_product_screen/{productId}"){
         fun createRoute(productId: Int) = "edit_product_screen/$productId"
     }
+    
+    object ProductDetailScreen : AppScreens("product_detail_screen/{productId}") {
+        fun createRoute(productId: Int) = "product_detail_screen/$productId"
+    }
+    
+    object ProductOwnerDetailScreen : AppScreens("product_owner_detail_screen/{productId}") {
+        fun createRoute(productId: Int) = "product_owner_detail_screen/$productId"
+    }
 
-    object ProductOwnerDetailScreen {
-        const val route = "product_owner_detail"
-        fun createRoute(productId: Int) = "$route/$productId"
+    /**
+     * Nueva pantalla para mostrar productos filtrados por categoría.
+     * La ruta incluye un placeholder para el nombre de la categoría.
+     */
+    object ProductsByCategoryScreen : AppScreens("products_by_category/{categoryName}") {
+        /**
+         * Crea la ruta completa para navegar a esta pantalla, reemplazando el placeholder
+         * con el nombre de la categoría real.
+         * @param categoryName El nombre de la categoría a mostrar.
+         * @return La ruta de navegación completa (ej. "products_by_category/Artesanías").
+         */
+        fun createRoute(categoryName: String) = "products_by_category/$categoryName"
     }
 }

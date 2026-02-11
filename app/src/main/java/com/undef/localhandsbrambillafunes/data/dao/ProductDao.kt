@@ -26,31 +26,29 @@ interface ProductDao {
     fun getAllProducts(): Flow<List<Product>>
 
     /**
+     * Obtiene una lista de todos los nombres de categorías únicos de la base de datos.
+     *
+     * @return Un [Flow] que emite una lista de [String] con los nombres de las categorías.
+     */
+    @Query("SELECT DISTINCT category FROM ProductEntity ORDER BY category ASC")
+    fun getAllCategories(): Flow<List<String>>
+
+    /**
+     * Obtiene una lista reactiva de productos que pertenecen a una categoría específica.
+     *
+     * @param category El nombre de la categoría para filtrar los productos.
+     * @return Un [Flow] que emite la lista de productos de esa categoría.
+     */
+    @Query("SELECT * FROM ProductEntity WHERE category = :category")
+    fun getProductsByCategory(category: String): Flow<List<Product>>
+
+    /**
      * Consulta SQL para insertar un producto en la tabla de la base de datos
      * @param product Producto a insertar.
      * @return ID generado del producto insertado.
      */
-    @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addProduct(product: Product): Long
-
-    /**
-     * Consulta SQL para obtener una lista de productos que pertenecen a una categoría específica
-     * Requerimiento: “Filtrar por categoría de productos”
-     * @param category Categoría de productos a filtrar.
-     * @return Lista de productos que pertenecen a la categoría dada.
-     */
-    @Query("SELECT * FROM ProductEntity WHERE category = :category")
-    suspend fun getProductsByCategory(category: String): List<Product>
-
-    /**
-     * Obtiene productos según la ubicación (ciudad) indicada
-     * Requerimiento: “Filtrar por ciudad”
-     * @param location Ciudad donde se localiza el producto.
-     * @return Lista de productos en la ciudad especificada.
-     */
-    @Query("SELECT * FROM ProductEntity WHERE location = :location")
-    suspend fun getProductsByCity(location: String): List<Product>
-
 
     /**
      * Recupera todos los productos asociados a un determinado usuario (vendedor).
@@ -79,6 +77,34 @@ interface ProductDao {
     fun getProductsByOwner(userId: Int): Flow<List<Product>>
 
     /**
+     * Realiza una búsqueda de productos en la base de datos según un texto dado.
+     *
+     * Este método ejecuta una consulta SQL que filtra los productos cuyos campos
+     * `name`, `category`, `location` o `producer` contengan el texto indicado en
+     * el parámetro `query`.
+     *
+     * La búsqueda no distingue entre coincidencias parciales, ya que utiliza
+     * el operador `LIKE` con comodines (`%`), permitiendo encontrar resultados
+     * que contengan el texto en cualquier posición del campo.
+     *
+     * El resultado se expone como un [Flow], lo que permite observar cambios
+     * reactivos en los datos y actualizar automáticamente la interfaz de usuario
+     * cuando la información almacenada se modifica.
+     *
+     * @param query Texto utilizado como criterio de búsqueda.
+     * @return Un [Flow] que emite una lista de productos que coinciden con el
+     * criterio de búsqueda.
+     */
+    @Query("""
+    SELECT * FROM ProductEntity 
+    WHERE name LIKE '%' || :query || '%' COLLATE NOCASE
+    OR category LIKE '%' || :query || '%' COLLATE NOCASE
+    OR location LIKE '%' || :query || '%' COLLATE NOCASE
+    OR producer LIKE '%' || :query || '%' COLLATE NOCASE
+    """)
+    fun searchProducts(query: String): Flow<List<Product>>
+
+    /**
      * Recupera un producto desde la base de datos en función de su identificador, como un flujo reactivo.
      *
      * Esta función retorna un [Flow] que emitirá el producto correspondiente al ID proporcionado, si existe.
@@ -91,23 +117,6 @@ interface ProductDao {
      */
     @Query("SELECT * FROM ProductEntity WHERE id = :id LIMIT 1")
     fun getProductById(id: Int): Flow<Product?>
-
-    /**
-     * Busca productos filtrando por nombre de vendedor.
-     * Realiza una búsqueda parcial utilizando `LIKE`.
-     * Requerimiento: “Filtrar por vendedor”
-     * @param name Parte del nombre del vendedor.
-     * @return Lista de productos cuyo vendedor coincide parcial o totalmente con el nombre indicado.
-     */
-    @Query("SELECT * FROM ProductEntity WHERE producer LIKE '%' || :name || '%'")
-    suspend fun searchProductsBySeller(name: String): List<Product>
-
-    /**
-     * Consulta SQL para obtener productos favoritos
-     * Requerimiento: “Almacenar en favoritos los productos que el usuario tiene interés”
-     */
-    /*@Query("SELECT * FROM ProductEntity WHERE isFavorite = 1")
-    fun getFavoriteProducts(): List<Product>*/
 
     /**
      * Consulta SQL para actualizar un producto en la tabla de la base de datos
@@ -129,6 +138,6 @@ interface ProductDao {
      * Inserta una lista de productos en la base de datos, reemplazando los existentes si hay conflictos.
      * Requerido cuando se sincronizan datos desde el servidor
      */
-    @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(products: List<Product>)
 }

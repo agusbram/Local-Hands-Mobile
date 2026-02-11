@@ -1,8 +1,10 @@
 package com.undef.localhandsbrambillafunes.ui.screens.entrepreneur
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,8 +27,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import java.io.File
 
@@ -54,18 +63,70 @@ fun EditProductScreen(
     navController: NavController,
     productId: Int,
     productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>(),
     sessionViewModel: SessionViewModel = hiltViewModel<SessionViewModel>()
 ) {
-    /*Para obtener el id actual del usuario reflejado en la UI en tiempo real*/
+    // Para obtener el id actual del usuario reflejado en la UI en tiempo real
     val currentUserIdState = remember { mutableStateOf<Int?>(null) }
 
-    /*Llamamos a una funcion suspend con corrutinas para obtener el currentUserId*/
+    // Estado para almacenar el nombre del emprendimiento del vendedor
+    val entrepreneurshipState = remember { mutableStateOf("") }
+
+    // Se observan cambios en tiempo real del entrepreneurship
+    val entrepreneurshipFromViewModel by sellViewModel.entrepreneurshipName.collectAsState()
+
+    // Llamamos a una funcion suspend con corrutinas para obtener el currentUserId
+
     LaunchedEffect(Unit) {
-        val currentUserId = sessionViewModel.getCurrentUserId()
-        currentUserIdState.value = currentUserId
+        val userId = sessionViewModel.getCurrentUserId()
+        currentUserIdState.value = userId
+        Log.d("EditProductScreen", "Usuario actual ID: $userId")
+
+        // Cargar entrepreneurship desde SellViewModel
+        val loaded = sellViewModel.loadEntrepreneurshipForUI()
+        entrepreneurshipState.value = loaded
     }
 
-    //Todos los productos actuales
+    // Actualizar entrepreneurshipState cuando cambie entrepreneurship
+    LaunchedEffect(entrepreneurshipFromViewModel) {
+        if (entrepreneurshipFromViewModel.isNotEmpty() && entrepreneurshipFromViewModel != entrepreneurshipState.value) {
+            entrepreneurshipState.value = entrepreneurshipFromViewModel
+        }
+    }
+
+    // Usar entrepreneurshipState.value como el producer
+    val producer = entrepreneurshipState.value
+
+    // Mostrar advertencia si no hay entrepreneurship
+    if (producer.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "No se encontró tu emprendimiento",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Por favor, actualiza tu perfil de vendedor primero",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { navController.navigate(AppScreens.ProfileScreen.route) }
+            ) {
+                Text("Ir a mi perfil")
+            }
+        }
+        return
+    }
+
+    // Todos los productos actuales
     val allProducts by productViewModel.products.collectAsState()
 
     // Estado para evitar recomposición hasta que se cargue el producto
@@ -92,10 +153,9 @@ fun EditProductScreen(
     // Si es un producto nuevo, los campos están vacíos
     var name by remember { mutableStateOf(originalProduct?.name ?: "") }
     var description by remember { mutableStateOf(originalProduct?.description ?: "") }
-    var producer by remember { mutableStateOf(originalProduct?.producer ?: "") }
-    var category by remember { mutableStateOf(originalProduct?.category ?: "") }
 
     // Estado de imágenes seleccionadas en la pantalla de edición/creación
+    var category by remember { mutableStateOf(originalProduct?.category ?: "") }
     var images by remember { mutableStateOf(originalProduct?.images ?: emptyList()) }
     var price by remember { mutableStateOf(originalProduct?.price?.toString() ?: "") }
     var location by remember { mutableStateOf(originalProduct?.location ?: "") }
@@ -104,10 +164,9 @@ fun EditProductScreen(
     // Validaciones
     val isNameValid = isValidTextField(name)
     val isDescriptionValid = isValidTextField(description)
-    val isProducerValid = isValidTextField(producer)
     val isPriceValid = isValidPrice(price)
     // Formulario válido solo si todo está correcto
-    val isFormValid = isNameValid && isDescriptionValid && isProducerValid && isPriceValid &&
+    val isFormValid = isNameValid && isDescriptionValid && isPriceValid &&
             category.isNotEmpty() && location.isNotEmpty() && images.isNotEmpty()
 
     Scaffold(
@@ -165,18 +224,36 @@ fun EditProductScreen(
                     unfocusedIndicatorColor = if (isDescriptionValid) Color.Green.copy(0.6f) else Color.Red.copy(0.6f)
                 )
             )
-            OutlinedTextField(
-                value = producer,
-                onValueChange = { producer = it },
-                label = { Text("Productor") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedLabelColor = if (isProducerValid) Color.Green else Color.Red,
-                    focusedIndicatorColor = if (isProducerValid) Color.Green else Color.Red,
-                    unfocusedIndicatorColor = if (isProducerValid) Color.Green.copy(0.6f) else Color.Red.copy(0.6f)
+
+            /**
+             * Campo de emprendimiento/productor actual.
+             * No es modificable. Se sincroniza con el emprendimiento del vendedor actual.
+             * */
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Productor (Emprendimiento)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
-            )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = producer,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+
             CategoryDropdown(
                 selectedCategory = category,
                 onCategorySelected = { category = it }
@@ -220,9 +297,9 @@ fun EditProductScreen(
                             ownerId = currentUserIdState.value ?: originalProduct?.ownerId
                         )
                         if (isEditing) {
-                            productViewModel.updateProduct(entity)
+                            productViewModel.updateProductSyncApi(entity)
                         } else {
-                            productViewModel.addProduct(entity)
+                            productViewModel.addProductSyncApi(entity)
                         }
                         navController.popBackStack() // Vuelve a la lista
                     },
@@ -238,7 +315,7 @@ fun EditProductScreen(
                     Button(
                         onClick = {
                             originalProduct?.let {
-                                productViewModel.deleteProduct(it)
+                                productViewModel.deleteProductSyncApi(it)
                                 navController.popBackStack()
                             }
                         },

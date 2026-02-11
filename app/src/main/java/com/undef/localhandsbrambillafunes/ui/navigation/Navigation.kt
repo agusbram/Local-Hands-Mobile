@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.undef.localhandsbrambillafunes.ui.screens.category.ProductsByCategoryScreen
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
@@ -25,6 +26,7 @@ import com.undef.localhandsbrambillafunes.ui.screens.splash.SplashScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.SellScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.EditProductScreen
 import com.undef.localhandsbrambillafunes.ui.screens.entrepreneur.ProductOwnerDetailScreen
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 
 
 /**
@@ -114,10 +116,10 @@ fun Navigation() {
             val product = productViewModel.products.collectAsState().value.find { it.id == productId }
 
             // Muestra la pantalla de detalle con el producto encontrado
-            product?.let {
+            product?.let { productDetails -> // Se le da un nombre explícito a 'it' para mayor claridad
                 ProductDetailScreen(
                     navController = navController,
-                    product = it,
+                    product = productDetails,
                     favoriteViewModel = hiltViewModel<FavoriteViewModel>()
                 )
             }
@@ -163,11 +165,12 @@ fun Navigation() {
             arguments = listOf(navArgument("productId") { type = NavType.IntType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getInt("productId") ?: 0
+
             EditProductScreen(
                 navController = navController,
                 productId = productId,
                 productViewModel = hiltViewModel<ProductViewModel>(),
-                sessionViewModel = hiltViewModel<SessionViewModel>()
+                sellViewModel = hiltViewModel<SellViewModel>(),
             )
         }
 
@@ -180,19 +183,36 @@ fun Navigation() {
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getInt("productId") ?: 0
             val productViewModel = hiltViewModel<ProductViewModel>()
-            val product = productViewModel.products.collectAsState().value.find { it.id == productId }
-            product?.let {
+            val product = productViewModel.products.collectAsState().value.find { product -> product.id == productId }
+            
+            product?.let { productDetails -> // Se usa 'productDetails' para mayor claridad
                 ProductOwnerDetailScreen(
                     navController = navController,
-                    product = it,
-                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(it.id)) },
+                    product = productDetails,
+                    productId = productId,
+                    onEdit = { navController.navigate(AppScreens.EditProductScreen.createRoute(productDetails.id)) },
                     onDelete = {
-                        productViewModel.deleteProduct(it)
+                        productViewModel.deleteProductSyncApi(productDetails)
                         navController.popBackStack()
-                    }
+                    },
+                    productViewModel = productViewModel
                 )
             }
         }
 
+        /**
+         * Pantalla que muestra la lista de productos para una categoría específica.
+         */
+        composable(
+            route = AppScreens.ProductsByCategoryScreen.route, // Usamos la nueva ruta
+            arguments = listOf(navArgument("categoryName") { type = NavType.StringType }) // Espera un String
+        ) { backStackEntry ->
+            // Extraemos el nombre de la categoría de los argumentos de la ruta
+            val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
+            ProductsByCategoryScreen(
+                navController = navController,
+                categoryName = categoryName
+            )
+        }
     }
 }

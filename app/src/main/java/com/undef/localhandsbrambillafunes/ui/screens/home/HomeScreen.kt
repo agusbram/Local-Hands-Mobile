@@ -17,8 +17,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -41,25 +43,56 @@ import com.undef.localhandsbrambillafunes.data.model.ProductListItem
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.setValue
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+
 
 /**
- * Pantalla principal de la aplicación que muestra una interfaz completa con barra superior,
- * contenido principal y barra de navegación inferior.
+ * Pantalla principal de la aplicación.
  *
- * Esta pantalla implementa el patrón Material Design 3 usando Scaffold como contenedor principal.
+ * Esta pantalla actúa como punto de entrada principal para el usuario y
+ * presenta una interfaz completa compuesta por:
+ * - Barra superior (TopAppBar)
+ * - Contenido principal con listado de productos
+ * - Barra de navegación inferior (NavigationBar)
+ *
+ * Implementa el patrón Material Design 3 utilizando [Scaffold] como
+ * contenedor estructural.
+ *
+ * @param navController Controlador de navegación para manejar el flujo entre pantallas.
+ * @param productViewModel ViewModel encargado de proveer el listado de productos.
+ * @param sellViewModel ViewModel encargado de gestionar la lógica de conversión a vendedor.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>()) {
-    val products by productViewModel.products.collectAsState()
+fun HomeScreen(
+    navController: NavController,
+    productViewModel: ProductViewModel = hiltViewModel<ProductViewModel>(),
+    sellViewModel: SellViewModel = hiltViewModel<SellViewModel>()
+) {
+    // Observamos el nuevo estado de la pantalla principal que ya viene agrupado
+    val homeState by productViewModel.homeScreenState.collectAsState()
+
+    // Controla la visualización del flujo de conversión a vendedor
+    var showSellDialog by remember { mutableStateOf(false) }
 
     /**
      * Scaffold es el componente base que proporciona la estructura básica de la pantalla
      * con áreas para barra superior, contenido principal y barra inferior.
      */
     Scaffold(
-        // Barra Superior con título y acciones
+        /**
+         * Barra superior de la aplicación.
+         *
+         * Incluye:
+         * - Logo de la aplicación
+         * - Título
+         * - Accesos directos a búsqueda, perfil y configuración
+         */
         topBar = {
             /**
              * TopAppBar proporciona la barra superior con título y acciones.
@@ -104,14 +137,12 @@ fun HomeScreen(navController: NavController, productViewModel: ProductViewModel 
                     IconButton(onClick = { navController.navigate(route = AppScreens.SearchBarScreen.route) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Buscar")
                     }
-
                     /**
                      * Botón de perfil que navega a la pantalla de perfil
                      */
                     IconButton(onClick = { navController.navigate(route = AppScreens.ProfileScreen.route) }) {
                         Icon(Icons.Filled.Person, contentDescription = "Sección de Perfil")
                     }
-
                     /**
                      * Botón de configuración que navega a la pantalla de ajustes
                      */
@@ -151,59 +182,93 @@ fun HomeScreen(navController: NavController, productViewModel: ProductViewModel 
                  */
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio")},
+                    label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { /* Implementar navegación a Home */ }
+                    selected = true, // Correcto: esta es la pantalla de inicio
+                    onClick = { /* No hacer nada, ya estamos aquí */ }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
-                    label = { Text("Favoritos")},
+                    label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.FavoritesScreen.route) }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Shop, contentDescription = "Vender") },
-                    label = { Text("Vender")},
+                    label = { Text("Vender") },
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { navController.navigate(route = AppScreens.SellScreen.route) }
+                    selected = false,
+                    onClick = { showSellDialog = true }
                 )
 
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Menu, contentDescription = "Categorias") },
-                    label = { Text("Categorías")},
+                    label = { Text("Categorías") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.CategoryScreen.route) }
                 )
             }
         }
     ) { paddingValues ->
+        /**
+         * Contenido principal de la pantalla.
+         *
+         * Muestra un listado vertical de productos destacados.
+         */
         LazyColumn(
             state = rememberLazyListState(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
-            // Encabezado de sección
-            item {
-                Text(
-                    text = "Productos Destacados",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+            // Renderizamos las categorías favoritas primero
+            homeState.favoriteProducts.forEach { (category, products) ->
+                // Título de la categoría favorita
+                item {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                // Lista de productos para esa categoría
+                items(items = products, key = { "fav-" + it.id }) { product ->
+                    ProductListItem(product = product, navController = navController)
+                }
+                // Separador
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
+                }
             }
 
-            // Lista de productos
-            items(
-                items = products,
-                key = { it.id } // Clave única para cada producto
-            ) { product ->
-                ProductListItem(product = product, navController = navController)
+            // Renderizamos el resto de los productos
+            if (homeState.otherProducts.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Productos Destacados",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                items(items = homeState.otherProducts, key = { "other-" + it.id }) { product ->
+                    ProductListItem(product = product, navController = navController)
+                }
             }
         }
+    }
+
+    /**
+     * Flujo de navegación hacia la pantalla de venta.
+     */
+    if (showSellDialog) {
+        SellerConversionHandler(
+            navController = navController,
+            sellViewModel = sellViewModel,
+            onDismiss = { showSellDialog = false }
+        )
     }
 }

@@ -3,15 +3,31 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
-import com.undef.localhandsbrambillafunes.data.model.ProductProviderMigration
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * Data class que representa el estado completo de la pantalla de inicio.
+ * @param favoriteProducts Un mapa donde la clave es el nombre de la categoría favorita y el valor es la lista de productos.
+ * @param otherProducts Una lista con el resto de los productos que no pertenecen a categorías favoritas.
+ */
+data class HomeScreenState(
+    val favoriteProducts: Map<String, List<Product>> = emptyMap(),
+    val otherProducts: List<Product> = emptyList()
+)
 
 /**
  * 🧠 ViewModel — Encargado de gestionar y exponer datos a la capa de UI.
@@ -31,75 +47,105 @@ import javax.inject.Inject
  * - Facilita la reutilización y testeo.
  * - Hace que la UI sea más declarativa y reactiva.
  */
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class ProductViewModel @Inject constructor(private val repository: ProductRepository) : ViewModel() {
-    // Todos los productos disponibles
+class ProductViewModel @Inject constructor(
+    private val repository: ProductRepository,
+    private val userPreferencesRepository: UserPreferencesRepository // Inyectamos el repo de preferencias
+) : ViewModel() {
+
+    /**
+     * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
+     * Combina dos flujos: la lista total de productos y las categorías favoritas del usuario.
+     * Cada vez que uno de los dos flujos cambia, este se recalcula automáticamente.
+     */
+    val homeScreenState: StateFlow<HomeScreenState> = combine(
+        repository.getAllProducts(),
+        userPreferencesRepository.favoriteCategoriesFlow
+    ) { allProducts, favoriteCategories ->
+        if (favoriteCategories.isEmpty()) {
+            // Si no hay favoritas, todos los productos van a la lista "otherProducts"
+            HomeScreenState(otherProducts = allProducts)
+        } else {
+            // Si hay favoritas, separamos los productos
+            val (favorites, others) = allProducts.partition { it.category in favoriteCategories }
+            // Agrupamos los favoritos por su categoría
+            val groupedFavorites = favorites.groupBy { it.category }
+            HomeScreenState(favoriteProducts = groupedFavorites, otherProducts = others)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = HomeScreenState() // Estado inicial vacío
+    )
+
+    /**
+     * Estado observable de productos que expone una lista de productos a la UI.
+     * Se mantiene por compatibilidad con otras pantallas que lo puedan necesitar.
+     */
     val products: StateFlow<List<Product>> = repository.getAllProducts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    //Inicializamos la BD con los productos migrados
-    init {
-        viewModelScope.launch {
-            // Verificamos si la BD ya tiene productos
-            val hasProducts = repository.getAllProducts().first().isNotEmpty() //First se utiliza porque tenemos un Flow en la lista de productos que traemos
-            if(!hasProducts) {
-                //Si no tiene productos, se insertan los productos migrados
-                val migratedProducts = ProductProviderMigration.getAllAsEntities()
-                repository.insertAll(migratedProducts)
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    /**
+     * Resultados de la búsqueda reactiva de productos.
+     */
+    val searchResults: StateFlow<List<Product>> = _searchQuery
+        .debounce(300)
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                repository.getAllProducts()
+            } else {
+                repository.searchProducts(query)
             }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Inicializa el ViewModel ejecutando automáticamente la sincronización
+     * de productos con la API al momento de su creación.
+     */
+    init {
+        syncProductsFromApi()
+    }
+
+    /**
+     * Sincroniza los productos desde la API hacia la base de datos local.
+     */
+    fun syncProductsFromApi() {
+        viewModelScope.launch {
+            repository.syncProductsWithApi()
         }
     }
 
     /**
-     * Inserta un nuevo producto en la base de datos.
-     *
-     * Este método lanza una corrutina en el `viewModelScope` y delega la operación al repositorio.
-     * Se utiliza al crear un nuevo producto desde la interfaz de usuario.
-     *
-     * @param product Instancia del producto a agregar.
+     * Actualiza el texto de búsqueda de productos.
      */
-    fun addProduct(product: Product) = viewModelScope.launch {
-        repository.insertProduct(product)
+    fun onSearchQueryChanged(newQuery: String) {
+        _searchQuery.value = newQuery
     }
 
     /**
-     * Actualiza un producto existente en la base de datos.
-     *
-     * Ideal para operaciones de edición donde el usuario modifica un producto previamente creado.
-     * La actualización se realiza de forma asincrónica dentro del `viewModelScope`.
-     *
-     * @param product Producto con los datos actualizados.
+     * Agrega un nuevo producto sincronizándolo con la API.
      */
-    fun updateProduct(product: Product) = viewModelScope.launch {
-        repository.updateProduct(product)
+    fun addProductSyncApi(product: Product) = viewModelScope.launch {
+        repository.addProductWithSync(product)
     }
 
     /**
-     * Elimina un producto de la base de datos.
-     *
-     * Este método remueve permanentemente el producto proporcionado.
-     * Se recomienda usarlo con confirmación del usuario, especialmente si el producto está publicado.
-     *
-     * @param product Producto que se desea eliminar.
+     * Actualiza un producto existente con sincronización hacia la API.
      */
-    fun deleteProduct(product: Product) = viewModelScope.launch {
-        repository.deleteProduct(product)
+    fun updateProductSyncApi(product: Product) = viewModelScope.launch {
+        repository.updateProductWithSync(product)
     }
 
-    fun getProductById(productId: Int): StateFlow<Product?> =
-        repository.getProductById(productId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
     /**
-     * Inserta una lista de productos en la base de datos, reemplazando los existentes si hay conflicto.
-     *
-     * Esta función es útil para sincronizar múltiples productos desde una fuente externa
-     * (como una API REST) o restaurar datos locales.
-     *
-     * @param products Lista de productos a insertar o actualizar.
+     * Elimina un producto sincronizándolo con la API.
      */
-    fun insertAll(products: List<Product>) = viewModelScope.launch {
-        repository.insertAll(products)
+    fun deleteProductSyncApi(product: Product) = viewModelScope.launch {
+        repository.deleteProductWithSync(product)
     }
 
     /**
@@ -135,9 +181,34 @@ class ProductViewModel @Inject constructor(private val repository: ProductReposi
      * @param ownerId ID del usuario del cual se desean obtener los productos.
      * @return Un [StateFlow] que contiene una lista de productos publicados por el usuario.
      */
-        fun getMyProducts(ownerId: Int): StateFlow<List<Product>> =
-            repository.getProductsByOwner(ownerId)
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun getMyProducts(ownerId: Int): StateFlow<List<Product>> =
+        repository.getProductsByOwner(ownerId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Obtiene un producto específico a partir de su identificador.
+     *
+     * Esta función expone un flujo reactivo del producto solicitado,
+     * convirtiendo el [Flow] proporcionado por el repositorio en un [StateFlow].
+     *
+     * El [StateFlow] se mantiene activo mientras existan suscriptores y se
+     * cancela automáticamente tras 5 segundos sin observadores, de acuerdo
+     * con la política [SharingStarted.WhileSubscribed].
+     *
+     * Si el producto no existe, el flujo emitirá `null`.
+     *
+     * @param productId Identificador único del producto a obtener.
+     * @return Un [StateFlow] que emite el [Product] correspondiente o `null`
+     * si no se encuentra disponible.
+     */
+    fun getProduct(productId: Int): StateFlow<Product?> {
+        return repository.getProductById(productId)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = null
+            )
+    }
 
     /**
      * Obtiene la lista de productos marcados como favoritos por el usuario.

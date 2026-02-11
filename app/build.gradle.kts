@@ -103,6 +103,17 @@ dependencies {
     // Dependencia BCrypt para hashear contraseñas
     implementation("at.favre.lib:bcrypt:0.10.2")
 
+    // Dependencia Datastore para persistencia de datos secundarios
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Dependencia de Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // Converter de Gson para Retrofit
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Te permite ver las peticiones y respuestas de la API en el Logcat,
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

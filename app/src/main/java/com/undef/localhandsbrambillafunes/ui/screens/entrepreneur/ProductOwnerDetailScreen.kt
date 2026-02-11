@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +50,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
+import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 
 /**
  * Pantalla de detalles del producto con opciones de edición y eliminación,
@@ -68,12 +73,40 @@ import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 @Composable
 fun ProductOwnerDetailScreen(
     navController: NavController,
+    productId: Int,
     product: Product,
+    productViewModel: ProductViewModel,
     onEdit: (Product) -> Unit,
     onDelete: (Product) -> Unit
 ) {
+    /**
+     * Recordamos el Flow para que no se tenga que actualizar la pagina constantemente.
+     * Se obtiene el producto desde la BD, haciendo una consulta que cuesta pocos recursos
+     * */
+    val productFlow = remember(productId) {
+        productViewModel.getProduct(productId)
+    }
+
+    // Se obtiene el estado del producto para obtener posteriormente su valor actual en tiempo real
+    val productState by productFlow.collectAsState()
+
+    // Usamos el valor actual del estado
+    val selectedProduct = productState
+
+    /**
+     * Se guarda el contenido de las imagennes de un producto en específico en una tubería
+     * reactiva en tiempo real de Flow
+    */
     val productImages = remember { product.images }
     val pagerState = rememberPagerState(pageCount = { productImages.size })
+
+    // Se maneja el caso que el producto sea igual a null
+    if (selectedProduct == null) {
+        // Mostrar un cargando o volver atrás si el producto ya no existe
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -135,35 +168,41 @@ fun ProductOwnerDetailScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Visor de imágenes
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
-                AsyncImage(
-                    model = productImages[page],
-                    contentDescription = "Imagen del producto",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+            ) {
+                // Visor de imágenes
+                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+                    AsyncImage(
+                        model = productImages[page],
+                        contentDescription = "Imagen del producto ${page + 1}",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
 
-            if (productImages.size > 1) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(productImages.size) { index ->
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f)
-                                )
-                        )
+                if (productImages.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(productImages.size) { index ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f)
+                                    )
+                            )
+                        }
                     }
                 }
             }
@@ -171,14 +210,14 @@ fun ProductOwnerDetailScreen(
             // Contenido Principal
             Column(Modifier.padding(16.dp)) {
                 Text(
-                    text = product.name,
+                    text = selectedProduct?.name ?: "",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Ubicación: ${product.location}",
+                    "Ubicación: ${selectedProduct?.location}",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -186,7 +225,7 @@ fun ProductOwnerDetailScreen(
                         .padding(vertical = 8.dp)
                 )
                 Text(
-                    text = "Precio: $${product.price}",
+                    text = "Precio: $${selectedProduct?.price}",
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
@@ -201,7 +240,7 @@ fun ProductOwnerDetailScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = product.description,
+                    text = selectedProduct?.description ?: "",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -209,11 +248,11 @@ fun ProductOwnerDetailScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Categoría: ${product.category}",
+                    text = "Categoría: ${selectedProduct?.category}",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    text = "Vendedor: ${product.producer}",
+                    text = "Vendedor: ${selectedProduct?.producer}",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 4.dp)
                 )
@@ -224,10 +263,12 @@ fun ProductOwnerDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    IconButton(onClick = { navController.navigate(AppScreens.EditProductScreen.createRoute(product.id)) }) {
+                    IconButton(onClick = { navController.navigate(AppScreens.EditProductScreen.createRoute(
+                        selectedProduct?.id ?: 0
+                    )) }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Editar", modifier = Modifier.size(32.dp))
                     }
-                    IconButton(onClick = { onDelete(product) }) {
+                    IconButton(onClick = { onDelete(selectedProduct!!) }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Eliminar", modifier = Modifier.size(32.dp))
                     }
                 }
