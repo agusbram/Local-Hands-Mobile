@@ -70,5 +70,11 @@ class FavoriteRepository @Inject constructor(
         favoriteDao.addFavorite(favorite)
     }
 
+    /**
+     * Obtiene los correos de los usuarios que tienen en favoritos productos de un vendedor.
+     */
+    suspend fun getEmailsOfUsersInterestedInSeller(sellerId: Int): List<String> {
+        return favoriteDao.getEmailsOfUsersInterestedInSeller(sellerId)
+    }
 
 }
