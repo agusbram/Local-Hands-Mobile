@@ -29,15 +29,6 @@
       "address": "San Luis 789, Rosario",
       "entrepreneurship": "Huerta La Orgánica",
       "photoUrl": "https://picsum.photos/id/1084/200/200"
-    },
-    {
-      "address": "Madrid",
-      "email": "tobifunes2@gmail.com",
-      "entrepreneurship": "Dulzuras de Melon",
-      "id": 4,
-      "lastname": "Funes",
-      "name": "Tobias",
-      "phone": "123124214124"
     }
   ],
   "products": [
@@ -52,7 +43,7 @@
         "https://picsum.photos/id/22/400/300",
         "https://picsum.photos/id/24/400/300"
       ],
-      "price": 2500,
+      "price": 2500.0,
       "location": "Córdoba"
     },
     {
@@ -65,7 +56,7 @@
       "images": [
         "https://picsum.photos/id/1078/400/300"
       ],
-      "price": 3800.5,
+      "price": 3800.50,
       "location": "Córdoba"
     },
     {
@@ -78,7 +69,7 @@
       "images": [
         "https://picsum.photos/id/145/400/300"
       ],
-      "price": 9500,
+      "price": 9500.0,
       "location": "Buenos Aires"
     },
     {
@@ -91,7 +82,7 @@
       "images": [
         "https://picsum.photos/id/563/400/300"
       ],
-      "price": 4200,
+      "price": 4200.0,
       "location": "Buenos Aires"
     },
     {
@@ -104,7 +95,7 @@
       "images": [
         "https://picsum.photos/id/1080/400/300"
       ],
-      "price": 3200,
+      "price": 3200.0,
       "location": "Rosario"
     },
     {
@@ -117,7 +108,7 @@
       "images": [
         "https://picsum.photos/id/135/400/300"
       ],
-      "price": 2800,
+      "price": 2800.0,
       "location": "Rosario"
     },
     {
@@ -130,7 +121,7 @@
       "images": [
         "https://picsum.photos/id/312/400/300"
       ],
-      "price": 1800,
+      "price": 1800.0,
       "location": "Córdoba"
     }
   ]
