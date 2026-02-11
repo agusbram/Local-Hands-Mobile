@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.model.ProductWithLocation
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -16,6 +17,17 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface ProductDao {
+
+    /**
+     * Consulta SQL para obtener todos los productos con la ubicación de su vendedor.
+     * @return [Flow] que emite una lista de todos los productos con su ubicación.
+     */
+    @Query("""
+        SELECT p.*, s.latitude, s.longitude
+        FROM ProductEntity p
+        LEFT JOIN SellerEntity s ON p.ownerId = s.id
+    """)
+    fun getAllProductsWithLocation(): Flow<List<ProductWithLocation>>
 
     /**
      * Consulta SQL para obtener todos los productos de la tabla de la base de datos

@@ -3,6 +3,7 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.model.ProductWithLocation
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Data class que representa el estado completo de la pantalla de inicio.
@@ -36,7 +41,7 @@ data class HomeScreenState(
  * Mantiene y proporciona los datos necesarios para la interfaz de usuario, incluso durante
  * cambios de configuración como rotaciones de pantalla.
  *
- * ## ¿Para qué sirve?
+ * ## ¿Para qué sirve?**
  * - 🔄 Recupera datos desde el `Repository` y los expone a la UI mediante `State`, `LiveData` o `StateFlow`.
  * - 🎯 Contiene la lógica de presentación (formateo, validación, control de estado).
  * - 🚫 No contiene lógica de negocio ni de acceso directo a la base de datos.
@@ -54,21 +59,53 @@ class ProductViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository // Inyectamos el repo de preferencias
 ) : ViewModel() {
 
+    private val _isProximityFilterEnabled = MutableStateFlow(false)
+    val isProximityFilterEnabled: StateFlow<Boolean> = _isProximityFilterEnabled.asStateFlow()
+
+    private val userLocationFlow = userPreferencesRepository.userLocationFlow
+
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
-     * Combina dos flujos: la lista total de productos y las categorías favoritas del usuario.
-     * Cada vez que uno de los dos flujos cambia, este se recalcula automáticamente.
+     * Combina tres flujos: la lista total de productos, las categorías favoritas y el estado del filtro de proximidad.
+     * Cada vez que uno de los tres flujos cambia, este se recalcula automáticamente.
      */
     val homeScreenState: StateFlow<HomeScreenState> = combine(
-        repository.getAllProducts(),
-        userPreferencesRepository.favoriteCategoriesFlow
-    ) { allProducts, favoriteCategories ->
+        repository.getAllProductsWithLocation(), // <-- Usamos la nueva función del repositorio
+        userPreferencesRepository.favoriteCategoriesFlow,
+        isProximityFilterEnabled,
+        userLocationFlow
+    ) { allProductsWithLocation, favoriteCategories, isFilterEnabled, userLocationStr ->
+
+        val filteredProductsWithLocation = if (isFilterEnabled && userLocationStr.isNotBlank()) {
+            val userCoords = userLocationStr.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+            if (userCoords.size == 2) {
+                val userLat = userCoords[0]
+                val userLon = userCoords[1]
+                allProductsWithLocation.filter { productWithLocation ->
+                    val sellerLat = productWithLocation.latitude
+                    val sellerLon = productWithLocation.longitude
+                    if (sellerLat != null && sellerLon != null) {
+                        calculateDistance(userLat, userLon, sellerLat, sellerLon) <= 10.0 // 10 km de radio
+                    } else {
+                        false
+                    }
+                }
+            } else {
+                allProductsWithLocation // Si la ubicación del usuario no es válida, no filtrar
+            }
+        } else {
+            allProductsWithLocation // El filtro no está activo
+        }
+
+        // Mapeamos de ProductWithLocation a Product para la UI
+        val filteredProducts = filteredProductsWithLocation.map { it.product }
+
         if (favoriteCategories.isEmpty()) {
             // Si no hay favoritas, todos los productos van a la lista "otherProducts"
-            HomeScreenState(otherProducts = allProducts)
+            HomeScreenState(otherProducts = filteredProducts)
         } else {
             // Si hay favoritas, separamos los productos
-            val (favorites, others) = allProducts.partition { it.category in favoriteCategories }
+            val (favorites, others) = filteredProducts.partition { it.category in favoriteCategories }
             // Agrupamos los favoritos por su categoría
             val groupedFavorites = favorites.groupBy { it.category }
             HomeScreenState(favoriteProducts = groupedFavorites, otherProducts = others)
@@ -109,6 +146,13 @@ class ProductViewModel @Inject constructor(
      */
     init {
         syncProductsFromApi()
+    }
+
+    /**
+     * Cambia el estado del filtro de proximidad.
+     */
+    fun toggleProximityFilter() {
+        _isProximityFilterEnabled.value = !_isProximityFilterEnabled.value
     }
 
     /**
@@ -222,4 +266,21 @@ class ProductViewModel @Inject constructor(
     fun getFavorites(userId: Int): StateFlow<List<Product>> =
         repository.getFavoritesForUser(userId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Calcula la distancia en kilómetros entre dos coordenadas geográficas usando la fórmula de Haversine.
+     */
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadiusKm = 6371.0
+
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        return earthRadiusKm * c
+    }
 }
