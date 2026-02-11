@@ -80,18 +80,19 @@ class SellViewModel @Inject constructor(
      * Estado que contiene el nombre del emprendimiento ingresado por el usuario.
      */
     private val _entrepreneurshipName = MutableStateFlow("")
+    val entrepreneurshipName: StateFlow<String> = _entrepreneurshipName
 
     /**
-     * Flujo observable del nombre del emprendimiento.
+     * Estado que contiene la dirección del emprendimiento seleccionada.
      */
-    val entrepreneurshipName: StateFlow<String> = _entrepreneurshipName
+    private val _address = MutableStateFlow<String?>(null)
+    val address: StateFlow<String?> = _address
 
     /**
      * Al inicializar el ViewModel se inicia la sincronización periódica
      * de vendedores con la API.
      */
     init {
-        startPeriodicSync()
         loadEntrepreneurshipFromDataStore()
     }
 
@@ -165,10 +166,11 @@ class SellViewModel @Inject constructor(
     }
 
     /**
-     * Limpia el estado del nombre del emprendimiento para nuevas conversiones.
+     * Limpia el estado del nombre del emprendimiento y la ubicación para nuevas conversiones.
      */
     fun resetConversionState() {
         _entrepreneurshipName.value = ""
+        _address.value = null
     }
 
     /**
@@ -178,6 +180,15 @@ class SellViewModel @Inject constructor(
      */
     fun onEntrepreneurshipNameChange(name: String) {
         _entrepreneurshipName.value = name
+    }
+
+    /**
+     * Actualiza la dirección de la ubicación seleccionada.
+     *
+     * @param address Dirección de la nueva ubicación.
+     */
+    fun onLocationChange(address: String) {
+        _address.value = address
     }
 
     /**
@@ -241,8 +252,8 @@ class SellViewModel @Inject constructor(
      * - Actualización del rol del usuario localmente.
      */
     fun convertUserToSeller() {
-        if (_entrepreneurshipName.value.isBlank()) {
-            // Si el nombre está vacío, no hacemos nada o mostramos un error específico.
+        if (_entrepreneurshipName.value.isBlank() || _address.value.isNullOrBlank()) {
+            // Si el nombre o la dirección están vacíos, no hacemos nada.
             // La UI ya debería prevenir esto con `enabled = false`.
             return
         }
@@ -250,8 +261,17 @@ class SellViewModel @Inject constructor(
         viewModelScope.launch {
             _status.value = SellerCreationStatus.LOADING
             try {
-                val userId = userPreferencesRepository.userIdFlow.firstOrNull() ?: throw Exception("Usuario no logueado.")
-                val user = userRepository.getUserById(userId).firstOrNull() ?: throw Exception("Usuario no encontrado.")
+                val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+                if (userId == null) {
+                    _status.value = SellerCreationStatus.ERROR
+                    return@launch
+                }
+
+                val user = userRepository.getUserById(userId).firstOrNull()
+                if (user == null) {
+                    _status.value = SellerCreationStatus.ERROR
+                    return@launch
+                }
 
                 // La verificación de si ya es vendedor es redundante aquí, pero es una buena salvaguarda.
                 if (user.role == UserRole.SELLER) {
@@ -260,7 +280,11 @@ class SellViewModel @Inject constructor(
                 }
 
                 // Llamar a la función del repositorio que hace la magia.
-                sellerRepository.convertToSeller(user, _entrepreneurshipName.value)
+                sellerRepository.convertToSeller(
+                    user = user,
+                    entrepreneurshipName = _entrepreneurshipName.value,
+                    address = _address.value!!
+                )
                     .onSuccess {
                         // Guardar emprendimiento en DataStore
                         userPreferencesRepository.saveUserEntrepreneurship(_entrepreneurshipName.value)
@@ -293,7 +317,7 @@ class SellViewModel @Inject constructor(
      *
      * @param sellerId Identificador único del vendedor.
      * @return Un [Flow] que emite el vendedor correspondiente al ID proporcionado,
-     *         o `null` si no existe un vendedor con dicho identificador.
+     *         o `null` si no se encuentra un vendedor con dicho identificador.
      */
     fun getSellerEmailById(sellerId: Int): Flow<Seller?> {
         return sellerRepository.getSellerById(sellerId)

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -32,7 +33,7 @@ import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellerCreationStatus
  * Este flujo incluye:
  * - Verificación del estado actual del usuario
  * - Confirmación de intención
- * - Ingreso del nombre del emprendimiento
+ * - Ingreso del nombre del emprendimiento y su ubicación
  * - Navegación automática a la pantalla de ventas
  *
  * @param navController Controlador de navegación.
@@ -47,11 +48,22 @@ fun SellerConversionHandler(
 ) {
     val status by sellViewModel.status.collectAsState()
     val entrepreneurshipName by sellViewModel.entrepreneurshipName.collectAsState()
-
+    val address by sellViewModel.address.collectAsState()
 
     // Estados locales para el control de diálogos
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var showEntrepreneurDialog by remember { mutableStateOf(false) }
+
+    // --- Lógica para recibir la ubicación seleccionada ---
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val pickedLocation = savedStateHandle?.get<String>("picked_location")
+
+    LaunchedEffect(pickedLocation) {
+        if (pickedLocation != null) {
+            sellViewModel.onLocationChange(pickedLocation)
+            savedStateHandle.remove<String>("picked_location")
+        }
+    }
 
     /**
      * Observa los cambios de estado del proceso de creación
@@ -64,7 +76,6 @@ fun SellerConversionHandler(
                 onDismiss()
             }
             SellerCreationStatus.IDLE -> {
-                // El ViewModel ha confirmado que el usuario no es vendedor. Mostramos el diálogo.
                 showConfirmationDialog = true
             }
             SellerCreationStatus.ERROR -> {
@@ -78,18 +89,13 @@ fun SellerConversionHandler(
      * Verifica el estado del usuario al iniciar el flujo.
      */
     LaunchedEffect(Unit) {
-        // Resetear el nombre al empezar
+        // Resetear el estado al empezar
         sellViewModel.resetConversionState()
-
-        // Verificación rápida inicial
         val isAlreadySeller = sellViewModel.isUserAlreadySeller()
-
         if (isAlreadySeller) {
-            // Navegar directamente
             navController.navigate(AppScreens.SellScreen.route)
             onDismiss()
         } else {
-            // Solo si NO es vendedor, iniciar el flujo de verificación
             sellViewModel.checkCurrentUserStatus()
         }
     }
@@ -99,66 +105,59 @@ fun SellerConversionHandler(
      */
     if (showConfirmationDialog) {
         AlertDialog(
-            onDismissRequest = {
-                onDismiss()
-            },
+            onDismissRequest = { onDismiss() },
             title = { Text("Convertirse en emprendedor") },
             text = { Text("Usted está a punto de convertirse en emprendedor. ¿Está seguro?") },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmationDialog = false
                     showEntrepreneurDialog = true
-                }) {
-                    Text("Sí")
-                }
+                }) { Text("Sí") }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    onDismiss()
-                }) {
-                    Text("No")
-                }
-            }
+            dismissButton = { TextButton(onClick = { onDismiss() }) { Text("No") } }
         )
     }
 
     /**
-     * Diálogo para ingresar el nombre del emprendimiento.
+     * Diálogo para ingresar los datos del emprendimiento.
      */
     if (showEntrepreneurDialog) {
+        val locationText = address ?: "Ubicación no seleccionada"
+
         AlertDialog(
-            onDismissRequest = {
-                onDismiss()
-            },
-            title = { Text("Nombre del emprendimiento") },
+            onDismissRequest = { onDismiss() },
+            title = { Text("Datos del emprendimiento") },
             text = {
                 Column {
-                    Text("Ingrese el nombre de su emprendimiento:")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Complete los datos de su emprendimiento:")
+                    Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = entrepreneurshipName,
                         onValueChange = { sellViewModel.onEntrepreneurshipNameChange(it) },
-                        placeholder = { Text("Ej: Dulzuras del Valle") },
+                        label = { Text("Nombre del emprendimiento") },
                         singleLine = true
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = locationText,
+                        onValueChange = {}, // No editable directamente
+                        label = { Text("Ubicación en el mapa") },
+                        readOnly = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { navController.navigate(AppScreens.LocationPickerScreen.route) }) {
+                        Text("Seleccionar Ubicación")
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    sellViewModel.convertUserToSeller()
-                },
-                    enabled = entrepreneurshipName.isNotBlank()
-                ) {
-                    Text("Aceptar")
-                }
+                TextButton(
+                    onClick = { sellViewModel.convertUserToSeller() },
+                    // El botón se activa solo si ambos campos están completos
+                    enabled = entrepreneurshipName.isNotBlank() && !address.isNullOrBlank()
+                ) { Text("Aceptar") }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    onDismiss()
-                }) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = { TextButton(onClick = { onDismiss() }) { Text("Cancelar") } }
         )
     }
 

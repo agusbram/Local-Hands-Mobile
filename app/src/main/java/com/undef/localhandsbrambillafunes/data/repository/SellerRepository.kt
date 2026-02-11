@@ -9,7 +9,6 @@ import com.undef.localhandsbrambillafunes.data.entity.User
 import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,10 +51,15 @@ class SellerRepository @Inject constructor(
      *
      * @param user Usuario a convertir en vendedor.
      * @param entrepreneurshipName Nombre del emprendimiento asociado.
+     * @param address Dirección del emprendimiento.
      *
      * @return [Result] indicando éxito o fallo de la operación.
      */
-    suspend fun convertToSeller(user: User, entrepreneurshipName: String): Result<Unit> {
+    suspend fun convertToSeller(
+        user: User,
+        entrepreneurshipName: String,
+        address: String
+    ): Result<Unit> {
         Log.d("SellerRepository", "Iniciando conversión a vendedor para el usuario: ${user.email}")
 
         val newSellerData = Seller(
@@ -64,9 +68,11 @@ class SellerRepository @Inject constructor(
             lastname = user.lastName,
             email = user.email,
             phone = user.phone,
-            address = user.address,
+            address = address, // Usamos la nueva dirección
             entrepreneurship = entrepreneurshipName,
-            photoUrl = user.photoUrl
+            photoUrl = user.photoUrl,
+            latitude = 0.0, // Valor por defecto
+            longitude = 0.0 // Valor por defecto
         )
 
         return try {
@@ -83,12 +89,14 @@ class SellerRepository @Inject constructor(
                 apiService.patchSeller(
                     user.id,
                     SellerPatchDTO(
-                        name = newSellerData. name,
+                        name = newSellerData.name,
                         lastname = newSellerData.lastname,
-                        phone = newSellerData. phone,
+                        phone = newSellerData.phone,
                         address = newSellerData.address,
                         entrepreneurship = newSellerData.entrepreneurship,
-                        photoUrl = newSellerData.photoUrl
+                        photoUrl = newSellerData.photoUrl,
+                        latitude = 0.0,
+                        longitude = 0.0
                     )
                 )
                 newSellerData // Usamos los datos locales
@@ -124,7 +132,7 @@ class SellerRepository @Inject constructor(
      * @param seller Vendedor a crear.
      * @return Vendedor creado por la API.
      */
-    private suspend fun createSellerWithSpecificId(seller:  Seller): Seller {
+    private suspend fun createSellerWithSpecificId(seller: Seller): Seller {
         // Llamar directamente al endpoint con el ID deseado
         // json-server respetará el ID que le envíes en el POST
         return apiService.createSeller(seller)
@@ -145,20 +153,23 @@ class SellerRepository @Inject constructor(
 
             // Para cada vendedor de la API, insertar o actualizar en Room
             sellersFromApi.forEach { apiSeller ->
-                // Verificar si ya existe en Room
-                val localSeller = sellerDao.getSellerByIdSuspend(apiSeller.id)
-                if (localSeller == null) {
-                    // Insertar nuevo
-                    sellerDao.insertSeller(apiSeller)
-                } else {
-                    // Actualizar existente
-                    sellerDao.updateSeller(apiSeller)
+                // Verificar si ya existe un usuario con el mismo id
+                val userExists = userDao.getUserById(apiSeller.id)
+                if (userExists != null) {
+                    val localSeller = sellerDao.getSellerByIdSuspend(apiSeller.id)
+                    if (localSeller == null) {
+                        // Insertar nuevo
+                        sellerDao.insertSeller(apiSeller)
+                    } else {
+                        // Actualizar existente
+                        sellerDao.updateSeller(apiSeller)
+                    }
                 }
             }
 
             Log.d("SellerRepository", "Synced ${sellersFromApi.size} sellers from API")
         } catch (e: Exception) {
-            Log.e("SellerRepository", "Error syncing sellers", e)
+            Log.e("SellerRepository", "Error syncing sellers (Fix with AI)", e)
         }
     }
 
@@ -264,7 +275,9 @@ class SellerRepository @Inject constructor(
                 phone = seller.phone,
                 address = seller.address,
                 entrepreneurship = seller.entrepreneurship,
-                photoUrl = seller.photoUrl
+                photoUrl = seller.photoUrl,
+                latitude = seller.latitude,
+                longitude = seller.longitude
             )
 
             val response = apiService.patchSeller(seller.id, sellerDto)
@@ -364,7 +377,9 @@ class SellerRepository @Inject constructor(
                 phone = seller.phone,
                 address = seller.address,
                 entrepreneurship = seller.entrepreneurship,
-                photoUrl = seller.photoUrl // Esto será null si se eliminó la foto
+                photoUrl = seller.photoUrl, // Esto será null si se eliminó la foto
+                latitude = seller.latitude,
+                longitude = seller.longitude
             )
 
             val response = apiService.putSeller(seller.id, sellerDto)
@@ -377,7 +392,7 @@ class SellerRepository @Inject constructor(
                     sellerDao.updateSeller(updatedSeller)
                 }
 
-                Result.success(Unit)
+                return Result.success(Unit)
             } else {
                 val errorBody = response.errorBody()?.string()
                 Log.e("SellerRepository", "❌ PUT también falló - Error: ${response.code()} - $errorBody")
