@@ -41,6 +41,7 @@ object DatabaseModule {
             "app_database"
         )
             .addCallback(callback)
+            .fallbackToDestructiveMigration()
             .build()
     }
 

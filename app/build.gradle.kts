@@ -7,26 +7,13 @@ plugins {
     //For plugin KSP for Room
     alias(libs.plugins.ksp)
 
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("dagger.hilt.android.plugin")
 }
 
 android {
-    // Configuracion de Variables de Entorno
-    defaultConfig {
-        // Leer desde local.properties
-        val localProperties = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localProperties.load(localPropertiesFile.inputStream())
-        }
-
-        buildConfigField("String", "EMAIL_USER", "\"${localProperties.getProperty("EMAIL_USER", "")}\"")
-        buildConfigField("String", "EMAIL_PASS", "\"${localProperties.getProperty("EMAIL_PASS", "")}\"")
-    }
-
-
     namespace = "com.undef.localhandsbrambillafunes"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.undef.localhandsbrambillafunes"
@@ -36,6 +23,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Leer desde local.properties
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+
+        buildConfigField("String", "EMAIL_USER", "\"${localProperties.getProperty("EMAIL_USER", "")}\"")
+        buildConfigField("String", "EMAIL_PASS", "\"${localProperties.getProperty("EMAIL_PASS", "")}\"")
     }
 
     buildTypes {
@@ -75,6 +72,14 @@ android {
     }
 }
 
+secrets {
+    // Opcional: Especifica un archivo de propiedades diferente.
+    // propertiesFileName = "secrets.properties"
+
+    // Opcional: Establece un valor predeterminado para la clave si no se encuentra en el archivo de propiedades.
+    defaultPropertiesFileName = "local.properties"
+}
+
 dependencies {
     val roomVersion = "2.7.2"
     val hiltVersion = "2.51.1" // USAR VERSIÓN MÁS RECIENTE
@@ -93,8 +98,7 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:$hiltVersion")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    implementation("io.coil-kt.coil3:coil-compose:3.2.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Dependencias para enviar correos de verificacion
     implementation("com.sun.mail:android-mail:1.6.7")
@@ -127,8 +131,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     //Dependencia para utilizar Visibilities en login screen
     implementation(libs.compose.icons.extended)
-    //Dependencia para utilizar rememberAsyncImagePainter
-    implementation(libs.coil.compose)
+    
+    // Dependencias de Google Maps
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+
+
 
     implementation(libs.androidx.ui.tooling.preview) // Para @Preview
     debugImplementation(libs.androidx.ui.tooling)    // Para ver Previews en Android Studio
