@@ -56,9 +56,34 @@ class ProductRepository @Inject constructor(
      */
     suspend fun syncProductsWithApi() {
         try {
+            Log.d("ProductRepository", "🔄 Iniciando sincronización de productos desde API...")
             val productsFromApi = api.getProducts()
-            productDao.insertAll(productsFromApi)
+            Log.d("ProductRepository", "📡 Se obtuvieron ${productsFromApi.size} productos de la API")
+
+            var insertedCount = 0
+            var updatedCount = 0
+            
+            productsFromApi.forEach { apiProduct ->
+                try {
+                    // Intentar insertar; si ya existe, se actualiza
+                    productDao.addProduct(apiProduct)
+                    insertedCount++
+                    Log.d("ProductRepository", "✅ Producto procesado: ${apiProduct.name} (ID: ${apiProduct.id})")
+                } catch (e: Exception) {
+                    // Si falla por duplicado, intentar actualizar
+                    try {
+                        productDao.updateProduct(apiProduct)
+                        updatedCount++
+                        Log.d("ProductRepository", "♻️ Producto actualizado: ${apiProduct.name} (ID: ${apiProduct.id})")
+                    } catch (updateError: Exception) {
+                        Log.e("ProductRepository", "❌ Error procesando producto ${apiProduct.id}: ${updateError.message}", updateError)
+                    }
+                }
+            }
+            
+            Log.d("ProductRepository", "✅ Sincronización de productos completada: $insertedCount insertados, $updatedCount actualizados")
         } catch (e: Exception) {
+            Log.e("ProductRepository", "❌ Error sincronizando productos: ${e.message}", e)
             e.printStackTrace()
         }
     }

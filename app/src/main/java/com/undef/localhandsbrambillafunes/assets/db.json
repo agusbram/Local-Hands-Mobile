@@ -40,8 +40,7 @@
       "category": "Artesanías",
       "ownerId": 1,
       "images": [
-        "https://picsum.photos/id/22/400/300",
-        "https://picsum.photos/id/24/400/300"
+        "https://images.pexels.com/photos/28486186/pexels-photo-28486186.jpeg"
       ],
       "price": 2500.0,
       "location": "Córdoba"
@@ -54,7 +53,7 @@
       "category": "Artesanías",
       "ownerId": 1,
       "images": [
-        "https://picsum.photos/id/1078/400/300"
+        "https://images.pexels.com/photos/18409729/pexels-photo-18409729.jpeg"
       ],
       "price": 3800.50,
       "location": "Córdoba"
@@ -67,7 +66,7 @@
       "category": "Textiles",
       "ownerId": 2,
       "images": [
-        "https://picsum.photos/id/145/400/300"
+        "https://images.pexels.com/photos/28949620/pexels-photo-28949620.jpeg"
       ],
       "price": 9500.0,
       "location": "Buenos Aires"
@@ -80,7 +79,7 @@
       "category": "Textiles",
       "ownerId": 2,
       "images": [
-        "https://picsum.photos/id/563/400/300"
+        "https://images.pexels.com/photos/11630887/pexels-photo-11630887.jpeg"
       ],
       "price": 4200.0,
       "location": "Buenos Aires"
@@ -93,7 +92,7 @@
       "category": "Alimentos",
       "ownerId": 3,
       "images": [
-        "https://picsum.photos/id/1080/400/300"
+        "https://images.pexels.com/photos/5425794/pexels-photo-5425794.jpeg"
       ],
       "price": 3200.0,
       "location": "Rosario"
@@ -106,7 +105,7 @@
       "category": "Alimentos",
       "ownerId": 3,
       "images": [
-        "https://picsum.photos/id/135/400/300"
+        "https://images.pexels.com/photos/7473575/pexels-photo-7473575.jpeg", "https://images.pexels.com/photos/8851478/pexels-photo-8851478.jpeg"
       ],
       "price": 2800.0,
       "location": "Rosario"
@@ -119,7 +118,7 @@
       "category": "Cosmética Natural",
       "ownerId": 1,
       "images": [
-        "https://picsum.photos/id/312/400/300"
+        "https://images.pexels.com/photos/31517685/pexels-photo-31517685.jpeg"
       ],
       "price": 1800.0,
       "location": "Córdoba"
