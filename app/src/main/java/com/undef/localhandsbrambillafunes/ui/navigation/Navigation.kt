@@ -9,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.undef.localhandsbrambillafunes.ui.screens.category.ProductsByCategoryScreen
+import com.undef.localhandsbrambillafunes.ui.screens.map.LocationPickerScreen
+import com.undef.localhandsbrambillafunes.ui.screens.map.MapScreen
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.favorites.FavoriteViewModel
@@ -213,6 +215,20 @@ fun Navigation() {
                 navController = navController,
                 categoryName = categoryName
             )
+        }
+        
+        /**
+         * Pantalla de prueba para el mapa de Google.
+         */
+        composable(AppScreens.MapScreen.route) {
+            MapScreen()
+        }
+
+        /**
+         * Pantalla para seleccionar una ubicación en el mapa.
+         */
+        composable(AppScreens.LocationPickerScreen.route) {
+            LocationPickerScreen(navController = navController)
         }
     }
 }
