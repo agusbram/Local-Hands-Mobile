@@ -181,7 +181,7 @@ fun ProductOwnerDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 300.dp),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Crop
                     )
                 }
 

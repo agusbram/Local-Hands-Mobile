@@ -362,7 +362,7 @@ fun CategoryDropdown(
     Box {
         OutlinedTextField(
             value = selectedCategory,
-            onValueChange = {},
+            onValueChange = {}, 
             readOnly = true,
             label = { Text("Categoría") },
             modifier = Modifier.fillMaxWidth(),
@@ -405,46 +405,43 @@ fun CategoryDropdown(
  * - Integración con formularios de productos u otros usos.
  *
  * @param selectedLocation Valor actual seleccionado por el usuario.
- * @param onLocationSelected Función callback que se ejecuta al seleccionar una nueva localidad.
+ * @param onLocationSelected Callback invocado cuando el usuario selecciona una localidad de la lista.
  */
 @Composable
 fun LocationDropdown(
     selectedLocation: String,
     onLocationSelected: (String) -> Unit
 ) {
-    val allLocations = listOf(
-        "Córdoba Capital", "Villa Carlos Paz", "Alta Gracia", "Jesús María", "Río Cuarto",
-        "Villa María", "Villa Dolores", "Villa General Belgrano", "Cosquín", "La Cumbre",
-        "Capilla del Monte", "Mina Clavero", "San Marcos Sierras", "Villa Allende", "Unquillo",
-        "Salsipuedes", "Colonia Caroya", "La Falda", "Malagueño", "Monte Cristo", "Río Ceballos",
-        "Dean Funes", "Bell Ville", "Arroyito", "San Francisco", "Leones", "Corral de Bustos",
-        "Laboulaye", "Huinca Renancó", "La Carlota", "Cruz del Eje", "Marcos Juárez", "General Deheza",
-        "General Cabrera", "Morteros", "Oncativo", "Las Varillas", "Villa Nueva", "Pilar", "Villa del Rosario",
-        "Laguna Larga", "Tancacha", "Oliva", "La Calera", "Monte Maíz", "Embalse", "La Paz", "Almafuerte",
-        "Bialet Massé", "Santa Rosa de Calamuchita", "Villa Rumipal", "Villa Yacanto", "Nono", "Tanti"
+    // Lista completa de localidades de Córdoba (podría venir de un ViewModel o un recurso)
+    val cordobaLocations = listOf(
+        "Córdoba", "Villa Carlos Paz", "La Falda", "Jesús María", "Alta Gracia", "Río Cuarto",
+        "Villa María", "San Francisco", "Bell Ville", "Marcos Juárez", "Cruz del Eje", "Mina Clavero"
+        // Añadir más localidades si es necesario
     )
 
     var expanded by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(selectedLocation) }
 
-    val filteredLocations = remember(searchText) {
-        allLocations.filter { it.contains(searchText, ignoreCase = true) }
+    // Filtrar localidades según el texto de búsqueda
+    val filteredLocations = if (searchText.isEmpty() || searchText == selectedLocation) {
+        cordobaLocations
+    } else {
+        cordobaLocations.filter { it.contains(searchText, ignoreCase = true) }
     }
 
     Box {
         OutlinedTextField(
-            value = searchText.ifBlank { selectedLocation },
-            onValueChange = {
+            value = searchText,
+            onValueChange = { 
                 searchText = it
-                expanded = true
+                expanded = true // Mantener el menú abierto mientras se escribe
             },
-            label = { Text("Ubicación") },
+            label = { Text("Localidad") },
             modifier = Modifier.fillMaxWidth(),
-            readOnly = false,
             trailingIcon = {
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = "Expandir"
                     )
                 }
@@ -452,16 +449,15 @@ fun LocationDropdown(
         )
 
         DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth()
+            expanded = expanded && filteredLocations.isNotEmpty(),
+            onDismissRequest = { expanded = false }
         ) {
             filteredLocations.forEach { location ->
                 DropdownMenuItem(
                     text = { Text(location) },
                     onClick = {
-                        onLocationSelected(location)
                         searchText = location
+                        onLocationSelected(location)
                         expanded = false
                     }
                 )
@@ -471,97 +467,67 @@ fun LocationDropdown(
 }
 
 /**
+ * Composable que permite al usuario seleccionar múltiples imágenes desde la galería.
  *
- * MultiImagePickerField: componente reutilizable para selección de imágenes.
- * Al seleccionar una o varias imágenes, se guardan en almacenamiento interno
- * y se actualiza el estado `images`, listo para ser persistido en Room.
- * Selector visual para múltiples imágenes desde la galería del dispositivo.
+ * Muestra una lista horizontal de las imágenes seleccionadas y un botón para añadir más.
  *
- * Esta función composable permite al usuario seleccionar múltiples imágenes de su galería utilizando
- * `ActivityResultContracts.GetMultipleContents`. Las imágenes seleccionadas se visualizan en una fila horizontal.
- *
- * Está diseñada para integrarse con formularios o pantallas de edición de contenido (por ejemplo, productos
- * con imágenes en una aplicación de marketplace).
- *
- * ## Características:
- * - Permite seleccionar múltiples imágenes a la vez.
- * - Muestra las imágenes seleccionadas en miniaturas (LazyRow).
- * - Utiliza `rememberLauncherForActivityResult` para gestionar el resultado de la selección.
- *
- * ## Parámetros:
- * @param selectedUris Lista actual de imágenes seleccionadas (como URIs).
- * @param onImagesSelected Función callback que se invoca con la nueva lista de URIs seleccionadas cuando el usuario elige imágenes.
- *
- * ## Ejemplo de uso:
- * ```
- * var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
- * MultiImagePickerField(
- *     selectedUris = imageUris,
- *     onImagesSelected = { imageUris = it }
- * )
- * ```
- *
- * ## Consideraciones:
- * - El parámetro `imageUris.map { it.toString() }` puede usarse para almacenar las rutas en Room.
- * - En emuladores o dispositivos físicos se requiere acceso al sistema de archivos (la galería).
+ * @param selectedPaths Lista de URIs (como Strings) de las imágenes ya seleccionadas.
+ * @param onImagesSelected Callback que se invoca con la nueva lista de URIs cuando el usuario selecciona imágenes.
  */
 @Composable
-fun MultiImagePickerField(
-    selectedPaths: List<String>,
-    onImagesSelected: (List<String>) -> Unit
-) {
+fun MultiImagePickerField(selectedPaths: List<String>, onImagesSelected: (List<String>) -> Unit) {
     val context = LocalContext.current
 
-    // Launcher para seleccionar múltiples imágenes desde el explorador
+    // Launcher para seleccionar múltiples imágenes
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
-        val paths = uris.mapNotNull { uri ->
-            copyUriToInternalStorage(context, uri)
+        contract = ActivityResultContracts.GetMultipleContents(),
+        onResult = { uris: List<Uri> ->
+            // Convertir URIs a Strings y añadir a la lista existente
+            val newPaths = uris.map { uri ->
+                // Copiar el archivo a almacenamiento interno para obtener una ruta persistente
+                File(context.cacheDir, "temp_${System.currentTimeMillis()}").apply {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }.absolutePath
+            }
+            onImagesSelected(selectedPaths + newPaths)
         }
-        if (paths.isNotEmpty()) {
-            onImagesSelected(paths)
-        }
-    }
+    )
 
-    Column {
-        // Botón que abre el selector de imágenes
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        // Botón para lanzar el selector de imágenes
         Button(onClick = { launcher.launch("image/*") }) {
-            Text("Seleccionar imágenes")
+            Text("Seleccionar Imágenes")
         }
 
-        // Vista previa horizontal de las imágenes seleccionadas
-        if (selectedPaths.isNotEmpty()) {
-            LazyRow(modifier = Modifier.padding(top = 8.dp)) {
-                items(selectedPaths) { path ->
-                    AsyncImage(
-                        model = File(path), // Carga desde archivo local
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // LazyRow para mostrar las previsualizaciones de las imágenes seleccionadas
+        LazyRow {
+            items(selectedPaths) {
+                AsyncImage(
+                    model = it,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
             }
         }
     }
 }
 
-/**
- * Valida si el campo de texto contiene por lo menos 10 caracteres
- * @input Texto a validar
- * */
-fun isValidTextField(input: String): Boolean = input.trim().length >= 10
+// --- VALIDACIONES ---
 
-/**
- * Valida si el precio es un número positivo
- * @price Precio a validar
- * */
-fun isValidPrice(price: String): Boolean =
-    price.toDoubleOrNull()?.let { it > 0 } == true
+fun isValidTextField(text: String): Boolean {
+    return text.trim().length >= 4
+}
 
-
-
-
+fun isValidPrice(price: String): Boolean {
+    return price.toDoubleOrNull()?.let { it > 0 } ?: false
+}

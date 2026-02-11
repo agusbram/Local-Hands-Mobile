@@ -235,6 +235,31 @@ class ProfileViewModel @Inject constructor(
         _editState.value = newState
     }
 
+    /**
+     * Actualiza la ubicación del vendedor.
+     *
+     * @param latitude Nueva latitud.
+     * @param longitude Nueva longitud.
+     */
+    fun updateLocation(latitude: Double, longitude: Double) {
+        viewModelScope.launch {
+            if (_userRole.value == UserRole.SELLER) {
+                val seller = originalSeller?.copy(
+                    latitude = latitude,
+                    longitude = longitude
+                )
+                if (seller != null) {
+                    sellerRepository.updateSellerApi(seller).onSuccess {
+                        _uiEventChannel.send(UiEvent.ShowToast("Ubicación actualizada correctamente"))
+                        refreshUserProfile() // Refrescar datos
+                    }.onFailure {
+                        _uiEventChannel.send(UiEvent.ShowToast("Error al actualizar la ubicación"))
+                    }
+                }
+            }
+        }
+    }
+
     // --------------------------------------------------
     // GUARDADO DE CAMBIOS
     // --------------------------------------------------
@@ -321,7 +346,9 @@ class ProfileViewModel @Inject constructor(
             address = editState.value.address,
             phone = editState.value.phone,
             entrepreneurship = editState.value.entrepreneurship,
-            photoUrl = _uiState.value.photoUrl ?: ""
+            photoUrl = _uiState.value.photoUrl ?: "",
+            latitude = editState.value.latitude,
+            longitude = editState.value.longitude
         )
 
         Log.d("ProfileViewModel", "Datos a actualizar:")
@@ -427,7 +454,9 @@ class ProfileViewModel @Inject constructor(
             email = seller.email,
             address = seller.address,
             phone = seller.phone,
-            entrepreneurship = seller.entrepreneurship
+            entrepreneurship = seller.entrepreneurship,
+            latitude = seller.latitude,
+            longitude = seller.longitude
         )
     }
 
@@ -744,7 +773,9 @@ data class EditProfileState(
     val email: String = "",
     val address: String = "",
     val phone: String = "",
-    val entrepreneurship: String = ""
+    val entrepreneurship: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 /**

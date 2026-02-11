@@ -1,6 +1,5 @@
 package com.undef.localhandsbrambillafunes.ui.screens.entrepreneur
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,7 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -283,8 +282,8 @@ fun SellContent(
                         ) {
                             val imageUrl = product.images.firstOrNull()
                             // Imagen del producto (desde URL o base de datos)
-                            Image(
-                                painter = rememberAsyncImagePainter(model = imageUrl),
+                            AsyncImage(
+                                model = imageUrl,
                                 contentDescription = "Imagen del producto ${product.name}",
                                 modifier = Modifier
                                     .size(80.dp)
