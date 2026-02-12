@@ -8,7 +8,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
-import com.undef.localhandsbrambillafunes.data.model.ProductWithLocation
 import com.undef.localhandsbrambillafunes.data.repository.FavoriteRepository
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
@@ -102,53 +101,45 @@ class ProductViewModel @Inject constructor(
     // Estado interno y externo que expone la lista de productos
     private val _products = MutableStateFlow<List<Product>>(emptyList())
 
-    private val _isProximityFilterEnabled = MutableStateFlow(false)
-    val isProximityFilterEnabled: StateFlow<Boolean> = _isProximityFilterEnabled.asStateFlow()
-
-    private val userLocationFlow = userPreferencesRepository.userLocationFlow
-
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
-     * Combina tres flujos: la lista total de productos, las categorías favoritas y el estado del filtro de proximidad.
-     * Cada vez que uno de los tres flujos cambia, este se recalcula automáticamente.
+     * Combina la lista total de productos, las categorías favoritas y las coordenadas del usuario.
+     * Cada vez que uno de los flujos cambia, este se recalcula automáticamente.
+     * 
+     * Si el usuario ha especificado una ubicación, se ordenan los productos 
+     * por proximidad (distancia) a su ubicación.
      */
     val homeScreenState: StateFlow<HomeScreenState> = combine(
-        repository.getAllProductsWithLocation(), // <-- Usamos la nueva función del repositorio
+        repository.getAllProducts(),
         userPreferencesRepository.favoriteCategoriesFlow,
-        isProximityFilterEnabled,
-        userLocationFlow
-    ) { allProductsWithLocation, favoriteCategories, isFilterEnabled, userLocationStr ->
+        userPreferencesRepository.userLatitudeFlow,
+        userPreferencesRepository.userLongitudeFlow
+    ) { allProducts, favoriteCategories, userLat, userLon ->
 
-        val filteredProductsWithLocation = if (isFilterEnabled && userLocationStr.isNotBlank()) {
-            val userCoords = userLocationStr.split(",").mapNotNull { it.trim().toDoubleOrNull() }
-            if (userCoords.size == 2) {
-                val userLat = userCoords[0]
-                val userLon = userCoords[1]
-                allProductsWithLocation.filter { productWithLocation ->
-                    val sellerLat = productWithLocation.latitude
-                    val sellerLon = productWithLocation.longitude
-                    if (sellerLat != null && sellerLon != null) {
-                        calculateDistance(userLat, userLon, sellerLat, sellerLon) <= 10.0 // 10 km de radio
-                    } else {
-                        false
-                    }
+        /**
+         * Ordena los productos por distancia si el usuario ha especificado una ubicación
+         * (indicado por coordenadas no nulas y no igual a 0.0).
+         */
+        val sortedProducts = if (userLat != 0.0 && userLon != 0.0) {
+            // Usuario ha especificado una ubicación - ordenar por proximidad
+            allProducts.sortedBy { product ->
+                if (product.latitude != 0.0 && product.longitude != 0.0) {
+                    calculateDistance(userLat, userLon, product.latitude, product.longitude)
+                } else {
+                    Double.MAX_VALUE // Productos sin ubicación van al final
                 }
-            } else {
-                allProductsWithLocation // Si la ubicación del usuario no es válida, no filtrar
             }
         } else {
-            allProductsWithLocation // El filtro no está activo
+            // No hay ubicación de usuario - mantener orden original
+            allProducts
         }
-
-        // Mapeamos de ProductWithLocation a Product para la UI
-        val filteredProducts = filteredProductsWithLocation.map { it.product }
 
         if (favoriteCategories.isEmpty()) {
             // Si no hay favoritas, todos los productos van a la lista "otherProducts"
-            HomeScreenState(otherProducts = filteredProducts)
+            HomeScreenState(otherProducts = sortedProducts)
         } else {
             // Si hay favoritas, separamos los productos
-            val (favorites, others) = filteredProducts.partition { it.category in favoriteCategories }
+            val (favorites, others) = sortedProducts.partition { it.category in favoriteCategories }
             // Agrupamos los favoritos por su categoría
             val groupedFavorites = favorites.groupBy { it.category }
             HomeScreenState(favoriteProducts = groupedFavorites, otherProducts = others)
@@ -191,12 +182,6 @@ class ProductViewModel @Inject constructor(
         syncProductsFromApi()
     }
 
-    /**
-     * Cambia el estado del filtro de proximidad.
-     */
-    fun toggleProximityFilter() {
-        _isProximityFilterEnabled.value = !_isProximityFilterEnabled.value
-    }
 
     /**
      * Sincroniza los productos desde la API hacia la base de datos local.
