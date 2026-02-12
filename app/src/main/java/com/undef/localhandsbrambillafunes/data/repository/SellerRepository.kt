@@ -153,40 +153,58 @@ class SellerRepository @Inject constructor(
      */
     suspend fun syncSellersWithApi(): List<Seller> {
         return try {
-            Log.d("SellerRepository", "🔄 Iniciando sincronización de vendedores desde API...")
+            Log.d("SellerRepository", "🔄 Obteniendo vendedores desde API...")
             val sellersFromApi = apiService.getSellers()
             Log.d("SellerRepository", "📡 Se obtuvieron ${sellersFromApi.size} vendedores de la API")
+            sellersFromApi
+        } catch (e: Exception) {
+            Log.e("SellerRepository", "❌ Error obteniendo vendedores de API: ${e.message}", e)
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Guarda una lista de vendedores en la base de datos local.
+     * 
+     * Este método debe llamarse DESPUÉS de que los usuarios asociados
+     * hayan sido creados, ya que SellerEntity tiene una restricción
+     * de clave foránea hacia UserEntity.
+     *
+     * @param sellers Lista de vendedores a guardar.
+     */
+    suspend fun saveSellers(sellers: List<Seller>) {
+        try {
+            Log.d("SellerRepository", "💾 Guardando ${sellers.size} vendedores en base de datos...")
 
             var insertedCount = 0
             var updatedCount = 0
             
-            // Para cada vendedor de la API, insertar o actualizar en Room
-            for (apiSeller in sellersFromApi) {
+            // Para cada vendedor, insertar o actualizar en Room
+            for (seller in sellers) {
                 try {
                     // Verificar si ya existe en Room
-                    val localSeller = sellerDao.getSellerByIdSuspend(apiSeller.id)
+                    val localSeller = sellerDao.getSellerByIdSuspend(seller.id)
                     if (localSeller == null) {
                         // Insertar nuevo
-                        sellerDao.insertSeller(apiSeller)
+                        sellerDao.insertSeller(seller)
                         insertedCount++
-                        Log.d("SellerRepository", "✅ Vendedor insertado: ${apiSeller.name} (ID: ${apiSeller.id})")
+                        Log.d("SellerRepository", "✅ Vendedor guardado: ${seller.name} (ID: ${seller.id})")
                     } else {
                         // Actualizar existente si hay cambios
-                        sellerDao.updateSeller(apiSeller)
+                        sellerDao.updateSeller(seller)
                         updatedCount++
-                        Log.d("SellerRepository", "♻️ Vendedor actualizado: ${apiSeller.name} (ID: ${apiSeller.id})")
+                        Log.d("SellerRepository", "♻️ Vendedor actualizado: ${seller.name} (ID: ${seller.id})")
                     }
                 } catch (e: Exception) {
-                    Log.e("SellerRepository", "❌ Error procesando vendedor ${apiSeller.id}: ${e.message}", e)
+                    Log.e("SellerRepository", "❌ Error procesando vendedor ${seller.id}: ${e.message}", e)
                 }
             }
 
-            Log.d("SellerRepository", "✅ Sincronización completada: $insertedCount insertados, $updatedCount actualizados")
-            sellersFromApi
+            Log.d("SellerRepository", "✅ Guardado completado: $insertedCount insertados, $updatedCount actualizados")
         } catch (e: Exception) {
-            Log.e("SellerRepository", "❌ Error sincronizando vendedores: ${e.message}", e)
+            Log.e("SellerRepository", "❌ Error guardando vendedores: ${e.message}", e)
             e.printStackTrace()
-            emptyList()
         }
     }
 

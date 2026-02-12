@@ -81,8 +81,14 @@ fun EditProductScreen(
     // Estado para almacenar el nombre del emprendimiento del vendedor
     val entrepreneurshipState = remember { mutableStateOf("") }
 
+    // Estado para almacenar la dirección del emprendimiento del vendedor
+    val addressState = remember { mutableStateOf("") }
+
     // Se observan cambios en tiempo real del entrepreneurship
     val entrepreneurshipFromViewModel by sellViewModel.entrepreneurshipName.collectAsState()
+
+    // Se observan cambios en tiempo real de la dirección
+    val addressFromViewModel by sellViewModel.address.collectAsState()
 
     // Llamamos a una funcion suspend con corrutinas para obtener el currentUserId
 
@@ -125,9 +131,12 @@ fun EditProductScreen(
             Log.d("EditProductScreen", "Usuario autenticado con ID: $userId")
 
             val loaded = sellViewModel.loadEntrepreneurshipForUI()
+            val address = sellViewModel.loadAddressForUI()
             Log.d("EditProductScreen", "Emprendimiento cargado: '$loaded'")
+            Log.d("EditProductScreen", "Dirección cargada: '$address'")
 
             entrepreneurshipState.value = loaded
+            addressState.value = address
         } catch (e: Exception) {
             Log.e("EditProductScreen", "ERROR CRITICO: ${e.message}")
             // Si hay error, quizás quieras mandar al usuario al Login
@@ -345,7 +354,7 @@ fun EditProductScreen(
             )
             LocationDropdown(
                 selectedLocation = location, 
-                preselectedFromSeller = producer, // Pre-seleccionar con ubicación del emprendimiento
+                preselectedFromSeller = addressState.value, // Pre-seleccionar con dirección del emprendimiento
                 context = context,
                 onLocationSelected = { newLocation, latitude, longitude ->
                     location = newLocation

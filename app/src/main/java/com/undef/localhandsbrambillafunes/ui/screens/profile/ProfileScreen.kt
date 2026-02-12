@@ -481,6 +481,7 @@ fun ProfileScreen(
 
                         // Campo para ver y editar la ubicación del emprendimiento
                         LocationProfileItem(
+                            address = editState.address,
                             latitude = editState.latitude,
                             longitude = editState.longitude,
                             onClick = {
@@ -752,9 +753,9 @@ fun EditableProfileItem(
  * @param onClick Acción a ejecutar al tocar el campo.
  */
 @Composable
-fun LocationProfileItem(latitude: Double?, longitude: Double?, onClick: () -> Unit) {
-    val locationText = if (latitude != null && longitude != null) {
-        "Ubicación: %.4f, %.4f".format(latitude, longitude)
+fun LocationProfileItem(address: String, latitude: Double?, longitude: Double?, onClick: () -> Unit) {
+    val locationText = if (address.isNotEmpty()) {
+        address
     } else {
         "Ubicación no establecida"
     }

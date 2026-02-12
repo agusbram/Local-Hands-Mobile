@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,12 +21,45 @@ import javax.inject.Inject
  *
  * @property userPreferencesRepository Repositorio que maneja las preferencias
  * del usuario relacionadas con la configuración.
+ * @property userRepository Repositorio para obtener datos del usuario actualmente autenticado.
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val productRepository: ProductRepository,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
+
+    // Inicializar ubicación del usuario con su dirección registrada si no existe
+    init {
+        loadUserLocationIfNotSet()
+    }
+
+    /**
+     * Carga la dirección del usuario registrado en DataStore si no existe una ubicación guardada.
+     *
+     * Se ejecuta al inicializar el ViewModel y obtiene la dirección del perfil del usuario
+     * actualmente autenticado. Esto asegura que SettingsScreen muestre la ubicación del usuario
+     * que registró al crear su perfil.
+     */
+    private fun loadUserLocationIfNotSet() {
+        viewModelScope.launch {
+            // Obtener la ubicación actual guardada
+            val currentLocation = userPreferencesRepository.getUserLocation()
+
+            // Si está vacía, cargar desde la base de datos del usuario autenticado
+            if (currentLocation.isEmpty()) {
+                val userId = (userPreferencesRepository.userIdFlow.firstOrNull() as? Int) ?: -1
+                if (userId != -1) {
+                    val user = userRepository.getUserByIdNonFlow(userId)
+                    if (user != null && user.address.isNotEmpty()) {
+                        // Guardar la dirección del usuario en DataStore
+                        userPreferencesRepository.saveUserLocation(user.address)
+                    }
+                }
+            }
+        }
+    }
 
     // --- Ubicación del Usuario ---
 

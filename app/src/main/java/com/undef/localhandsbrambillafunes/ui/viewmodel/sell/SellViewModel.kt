@@ -203,6 +203,45 @@ class SellViewModel @Inject constructor(
     }
 
     /**
+     * Obtiene la dirección del emprendimiento actualmente disponible para la UI.
+     *
+     * Este método devuelve el valor en memoria sin acceder a DataStore,
+     * por lo que es inmediato y no bloqueante.
+     *
+     * @return Dirección del emprendimiento cargada en el ViewModel.
+     */
+    fun getAddressForUI(): String {
+        return _address.value ?: ""
+    }
+
+    /**
+     * Fuerza la carga de la dirección del emprendimiento desde la base de datos.
+     *
+     * Este método accede a la base de datos local y sincroniza el valor
+     * recuperado con el estado interno del ViewModel. Se utiliza para
+     * obtener la dirección física registrada en el perfil del vendedor.
+     *
+     * @return Dirección del emprendimiento obtenida desde la base de datos.
+     */
+    suspend fun loadAddressForUI(): String {
+        var address = _address.value ?: ""
+
+        // Si está vacío, lo buscamos en la base de datos local usando el ID del usuario
+        if (address.isEmpty()) {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+            if (userId != null && userId != -1) {
+                val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                if (seller != null) {
+                    address = seller.address
+                    _address.value = address
+                }
+            }
+        }
+
+        return address
+    }
+
+    /**
      * Limpia el estado del nombre del emprendimiento y la ubicación para nuevas conversiones.
      */
     fun resetConversionState() {

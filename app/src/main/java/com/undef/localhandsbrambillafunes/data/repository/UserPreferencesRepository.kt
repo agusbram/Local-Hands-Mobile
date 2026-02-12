@@ -236,8 +236,20 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
 
     /**
      * Limpia el ID del usuario guardado.
+     *     * Obtiene la ubicación actual del usuario de forma sincróna.
      *
-     * Se debe llamar a esta función cuando el usuario cierra sesión (logout)
+     * Realiza una lectura única del DataStore sin suscribirse a cambios.
+     * Si no existe ubicación guardada, devuelve una cadena vacía.
+     *
+     * @return Ubicación actual del usuario, o cadena vacía si no está definida.
+     */
+    suspend fun getUserLocation(): String {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.USER_LOCATION] ?: ""
+        }.firstOrNull() ?: ""
+    }
+
+    /**     * Se debe llamar a esta función cuando el usuario cierra sesión (logout)
      * para asegurar que los datos del perfil no se muestren a la persona equivocada.
      */
     suspend fun clearUserId() {

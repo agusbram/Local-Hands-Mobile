@@ -29,6 +29,17 @@
       "address": "San Luis 789, Rosario",
       "entrepreneurship": "Huerta La Orgánica",
       "photoUrl": "https://picsum.photos/id/1084/200/200"
+    },
+    {
+      "address": "General Simón Bolívar, Córdoba",
+      "email": "tobifunes2@gmail.com",
+      "entrepreneurship": "Te vendo To",
+      "id": 4,
+      "lastname": "Funes",
+      "latitude": -31.421510936135544,
+      "longitude": -64.19421695172787,
+      "name": "Tobias",
+      "phone": "3512033568"
     }
   ],
   "products": [
@@ -123,6 +134,33 @@
       ],
       "price": 1800,
       "location": "Córdoba"
+    },
+    {
+      "category": "Alimentos",
+      "description": "Manzana de color Rojo",
+      "id": 8,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/cache/temp_1770914111270"
+      ],
+      "location": "General Simón Bolívar, Córdoba",
+      "name": "Manzana Roja",
+      "ownerId": 4,
+      "price": 1500,
+      "producer": "Te vendo To"
+    },
+    {
+      "category": "Alimentos",
+      "description": "eso mismo que dice arriba",
+      "id": 9,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/cache/temp_1770914152139",
+        "/data/user/0/com.undef.localhandsbrambillafunes/cache/temp_1770914191622"
+      ],
+      "location": "General Simón Bolívar, Córdoba",
+      "name": "Manzana Verde para Daltonicos",
+      "ownerId": 4,
+      "price": 1234,
+      "producer": "Te vendo To"
     }
   ]
 }
