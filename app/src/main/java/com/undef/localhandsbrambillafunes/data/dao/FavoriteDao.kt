@@ -63,4 +63,27 @@ interface FavoriteDao {
         WHERE f.userId = :userId
     """)
     fun getFavoritesForUser(userId: Int): Flow<List<Product>>
+
+    /**
+     * Obtiene la lista de correos electrónicos de los usuarios que han marcado
+     * como favorito algún producto perteneciente a un vendedor específico.
+     *
+     * La consulta:
+     * - Une la tabla de usuarios (UserEntity)
+     * - Con la tabla de favoritos (FavoriteEntity)
+     * - Y la tabla de productos (ProductEntity)
+     * - Filtra los productos por el identificador del vendedor (ownerId)
+     * - Devuelve únicamente emails distintos (sin duplicados)
+     *
+     * @param sellerId Identificador del vendedor cuyos productos fueron marcados como favoritos.
+     * @return Lista de correos electrónicos únicos de los usuarios interesados.
+     */
+    @Query("""
+    SELECT DISTINCT u.email
+    FROM UserEntity u
+    INNER JOIN FavoriteEntity f ON u.id = f.userId
+    INNER JOIN ProductEntity p ON f.productId = p.id
+    WHERE p.ownerId = :sellerId
+    """)
+    suspend fun getEmailsOfUsersInterestedInSeller(sellerId: Int): List<String>
 }

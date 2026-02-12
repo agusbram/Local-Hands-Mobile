@@ -1,5 +1,9 @@
 package com.undef.localhandsbrambillafunes.ui.viewmodel.sell
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Seller
@@ -15,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.core.net.toUri
 
 /**
  * Representa los posibles estados del proceso de creación o validación
@@ -148,7 +153,23 @@ class SellViewModel @Inject constructor(
      * @return Nombre del emprendimiento obtenido desde DataStore.
      */
     suspend fun loadEntrepreneurshipForUI(): String {
-        return userPreferencesRepository.getUserEntrepreneurship().also {
+        // Intentamos obtenerlo del DataStore
+        var entrepreneurship = userPreferencesRepository.getUserEntrepreneurship()
+
+        // Si está vacío, lo buscamos en la base de datos local usando el ID del usuario
+        if (entrepreneurship.isEmpty()) {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+            if (userId != null && userId != -1) {
+                val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                if (seller != null) {
+                    entrepreneurship = seller.entrepreneurship
+                    // Lo guardamos en DataStore para la próxima vez
+                    userPreferencesRepository.saveUserEntrepreneurship(entrepreneurship)
+                }
+            }
+        }
+
+        return entrepreneurship.also {
             _entrepreneurshipName.value = it
         }
     }

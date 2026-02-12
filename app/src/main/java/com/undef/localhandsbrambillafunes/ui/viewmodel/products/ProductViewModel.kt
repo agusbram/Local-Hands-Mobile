@@ -1,9 +1,16 @@
 package com.undef.localhandsbrambillafunes.ui.viewmodel.products
 
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import android.widget.Toast
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
+import com.undef.localhandsbrambillafunes.data.repository.FavoriteRepository
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
+import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -51,8 +59,44 @@ data class HomeScreenState(
 @HiltViewModel
 class ProductViewModel @Inject constructor(
     private val repository: ProductRepository,
-    private val userPreferencesRepository: UserPreferencesRepository // Inyectamos el repo de preferencias
+    private val favoriteRepository: FavoriteRepository,
+    private val sellerRepository: SellerRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
+    /**
+     * Flujo interno mutable utilizado para notificar a la UI que debe
+     * disparar el envío de un correo electrónico.
+     *
+     * Contiene un Pair donde:
+     * - first: Lista de destinatarios (correos electrónicos).
+     * - second: Contenido o mensaje del correo.
+     *
+     * Se inicializa en null para indicar que no hay evento pendiente.
+     */
+    private val _emailNotificationEvent = MutableStateFlow<Triple<List<String>, String, Product>?>(null)
+
+    /**
+     * Exposición inmutable del evento hacia la UI.
+     *
+     * La interfaz de usuario debe observar este StateFlow para reaccionar
+     * cuando se publique un nuevo evento de notificación por correo.
+     */
+    val emailNotificationEvent = _emailNotificationEvent.asStateFlow()
+
+    /**
+     * Restablece el evento de notificación de correo.
+     *
+     * Debe llamarse después de que la UI haya procesado el evento,
+     * evitando que se vuelva a ejecutar de forma accidental
+     * (por ejemplo, tras recomposición).
+     */
+    fun resetEmailEvent() {
+        _emailNotificationEvent.value = null
+    }
+
+
+    // Estado interno y externo que expone la lista de productos
+    private val _products = MutableStateFlow<List<Product>>(emptyList())
 
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
@@ -78,6 +122,7 @@ class ProductViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeScreenState() // Estado inicial vacío
     )
+
 
     /**
      * Estado observable de productos que expone una lista de productos a la UI.
@@ -128,10 +173,42 @@ class ProductViewModel @Inject constructor(
     }
 
     /**
-     * Agrega un nuevo producto sincronizándolo con la API.
+     * Agrega un nuevo producto sincronizándolo con la API y actualiza el estado local.
+     *
+     * El flujo de ejecución es el siguiente:
+     * 1. Envía el producto al repositorio para su creación remota y persistencia local.
+     * 2. Una vez creado, lo agrega a la lista interna mantenida por el ViewModel.
+     * 3. Si el producto pertenece a un vendedor:
+     *    - Obtiene los correos electrónicos de los usuarios que han marcado
+     *      como favorito algún producto de ese vendedor.
+     *    - Recupera el nombre del emprendimiento del vendedor.
+     *    - Si existen destinatarios, emite un evento para que la UI dispare
+     *      el envío de un correo electrónico.
+     *
+     * El envío real del correo no se realiza aquí; el ViewModel únicamente
+     * expone un evento observable para que la interfaz lo gestione.
+     *
+     * @param product Producto a crear y sincronizar con la API.
      */
     fun addProductSyncApi(product: Product) = viewModelScope.launch {
-        repository.addProductWithSync(product)
+        val createdProduct = repository.addProductWithSync(product)
+
+        // --- LOGICA DE NOTIFICACION ---
+        val sellerId = product.ownerId
+        if (sellerId != null) {
+            // 1. Obtener emails de interesados en este vendedor
+            val emails = favoriteRepository.getEmailsOfUsersInterestedInSeller(sellerId)
+
+            // 2. Obtener el nombre del emprendimiento
+            val seller = sellerRepository.getSellerById(sellerId).firstOrNull()
+            val entrepreneurship = seller?.entrepreneurship ?: "Nuestro Emprendimiento"
+
+            if (emails.isNotEmpty()) {
+                // Disparamos el evento para que la UI abra el Intent
+                _emailNotificationEvent.value = Triple(emails, entrepreneurship, createdProduct)
+            }
+        }
+        _products.value = _products.value + createdProduct
     }
 
     /**
