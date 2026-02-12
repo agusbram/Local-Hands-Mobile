@@ -25,6 +25,8 @@ import com.undef.localhandsbrambillafunes.data.db.Converters
  * @property images Lista de URLs que apuntan a imágenes del producto. Debe contener entre 1 y 10 elementos.
  * @property price Precio del producto expresado en moneda local.
  * @property location Ciudad o lugar donde se encuentra disponible el producto.
+ * @property latitude Latitud de la ubicación del producto. Por defecto 0.0 si no se especifica.
+ * @property longitude Longitud de la ubicación del producto. Por defecto 0.0 si no se especifica.
  */
 @Entity(tableName = "ProductEntity")
 @TypeConverters(Converters::class)
@@ -37,5 +39,7 @@ data class Product(
     val ownerId: Int?, // null = producto público, no es de ningún emprendedor aún
     val images: List<String>, // Mínimo 1 imagen, máximo 10
     val price: Double,
-    val location: String
+    val location: String,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0
 )

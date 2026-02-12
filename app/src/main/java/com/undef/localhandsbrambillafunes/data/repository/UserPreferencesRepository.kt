@@ -46,6 +46,16 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
         val USER_LOCATION = stringPreferencesKey("user_location")
 
         /**
+         * Clave utilizada para almacenar la latitud de la ubicación del usuario.
+         */
+        val USER_LATITUDE = stringPreferencesKey("user_latitude")
+
+        /**
+         * Clave utilizada para almacenar la longitud de la ubicación del usuario.
+         */
+        val USER_LONGITUDE = stringPreferencesKey("user_longitude")
+
+        /**
          * Clave utilizada para almacenar el ID del usuario actualmente logueado.
          */
         val USER_ID = intPreferencesKey("user_id")
@@ -166,6 +176,39 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
     }
 
     /**
+     * Flujo reactivo que emite la latitud de la ubicación del usuario.
+     * Se utiliza para filtrado de productos por proximidad.
+     * Valor por defecto: 0.0 (sin ubicación especificada).
+     */
+    val userLatitudeFlow: Flow<Double> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.USER_LATITUDE]?.toDoubleOrNull() ?: 0.0
+        }
+
+    /**
+     * Flujo reactivo que emite la longitud de la ubicación del usuario.
+     * Se utiliza para filtrado de productos por proximidad.
+     * Valor por defecto: 0.0 (sin ubicación especificada).
+     */
+    val userLongitudeFlow: Flow<Double> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.USER_LONGITUDE]?.toDoubleOrNull() ?: 0.0
+        }
+
+    /**
+     * Guarda las coordenadas (latitud y longitud) de la ubicación del usuario.
+     *
+     * @param latitude Latitud de la ubicación.
+     * @param longitude Longitud de la ubicación.
+     */
+    suspend fun saveUserCoordinates(latitude: Double, longitude: Double) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USER_LATITUDE] = latitude.toString()
+            preferences[PreferencesKeys.USER_LONGITUDE] = longitude.toString()
+        }
+    }
+
+    /**
      * Flujo reactivo que emite el ID del usuario logueado.
      *
      * Este Flow es fundamental para que otras partes de la app (como ProfileViewModel)
@@ -193,8 +236,20 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
 
     /**
      * Limpia el ID del usuario guardado.
+     *     * Obtiene la ubicación actual del usuario de forma sincróna.
      *
-     * Se debe llamar a esta función cuando el usuario cierra sesión (logout)
+     * Realiza una lectura única del DataStore sin suscribirse a cambios.
+     * Si no existe ubicación guardada, devuelve una cadena vacía.
+     *
+     * @return Ubicación actual del usuario, o cadena vacía si no está definida.
+     */
+    suspend fun getUserLocation(): String {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.USER_LOCATION] ?: ""
+        }.firstOrNull() ?: ""
+    }
+
+    /**     * Se debe llamar a esta función cuando el usuario cierra sesión (logout)
      * para asegurar que los datos del perfil no se muestren a la persona equivocada.
      */
     suspend fun clearUserId() {

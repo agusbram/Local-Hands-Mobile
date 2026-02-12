@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.ui.components.ErrorDialog
 import com.undef.localhandsbrambillafunes.ui.components.LoadingDialog
+import com.undef.localhandsbrambillafunes.ui.components.LocationMapSelector
 import com.undef.localhandsbrambillafunes.ui.components.PasswordField
 import com.undef.localhandsbrambillafunes.ui.components.RepeatPasswordField
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
@@ -63,7 +64,7 @@ import com.undef.localhandsbrambillafunes.ui.viewmodel.auth.RegisterViewModel
 fun RegisterScreen(navController: NavController) {
     val viewModel: RegisterViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
-//    val context = LocalContext.current
+    val context = LocalContext.current
 
 // Observar éxito para navegar
     LaunchedEffect(uiState.isSuccess) {
@@ -86,6 +87,7 @@ fun RegisterScreen(navController: NavController) {
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var showMapSelector by remember { mutableStateOf(false) }
 
     // Validaciones
     val isEmailValid = Patterns.EMAIL_ADDRESS.matcher(email).matches()
@@ -161,14 +163,6 @@ fun RegisterScreen(navController: NavController) {
     Box(Modifier.fillMaxSize().background(Color(0xFF242424))) {
         Column(Modifier.align(Alignment.Center).padding(16.dp).verticalScroll(rememberScrollState())) {
 
-            // Boton temporal para vaciar la tabla de usuarios (eliminar en produccion)
-            Button(
-                onClick = { viewModel.clearUsers() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-            ) {
-                Text("Limpiar Usuarios")
-            }
-
 
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
                 Column(Modifier.padding(16.dp)) {
@@ -200,7 +194,20 @@ fun RegisterScreen(navController: NavController) {
                     )
 
                     PhoneField("Teléfono", phone, phone.length >= 8) { phone = it }
-                    ValidatedInputField("Domicilio", address, address.length >= 4) { address = it }
+                    
+                    // Campo: Domicilio (selección con Google Maps)
+                    Column(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)) {
+                        Text("Domicilio", style = MaterialTheme.typography.labelSmall)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Button(
+                            onClick = { showMapSelector = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (address.isEmpty()) "Seleccionar en Mapa" else address)
+                        }
+                    }
 
                     Spacer(Modifier.height(16.dp))
 
@@ -228,10 +235,32 @@ fun RegisterScreen(navController: NavController) {
             }
         }
     }
+
+    // Selector de ubicación con Google Maps - abre diálogo para seleccionar domicilio
+    if (showMapSelector) {
+        LocationMapSelector(
+            title = "Selecciona tu domicilio",
+            initialAddress = address,
+            context = context,
+            onLocationSelected = { selectedAddress, _, _ ->
+                address = selectedAddress
+                showMapSelector = false
+            },
+            onDismiss = { showMapSelector = false },
+            confirmButtonText = "Confirmar Ubicación"
+        )
+    }
 }
 
 /**
- * Componente: Campo de teléfono con validación
+ * Campo de entrada de teléfono con validación en tiempo real.
+ * Muestra colores verde (válido) o rojo (inválido) según el estado.
+ *
+ * @param label Etiqueta del campo
+ * @param value Valor actual del teléfono
+ * @param isValid Indica si el teléfono es válido
+ * @param keyboardType Tipo de teclado a mostrar
+ * @param onChange Callback invocado cuando cambia el valor
  */
 @Composable
 fun PhoneField(
@@ -244,13 +273,13 @@ fun PhoneField(
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) }, //Campo de texto que se mostrará en el input antes de poder ingresarle el input
+        label = { Text(label) },
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = keyboardType),
         singleLine = true,
-        /*Agrega colores rojo y verde para mostrar cuando el dato ingresado sea válido o no*/
+        // Indica validación con colores: verde si es válido, rojo si no
         colors = TextFieldDefaults.colors(
             focusedLabelColor = if (isValid) Color.Green else Color.Red,
             focusedIndicatorColor = if (isValid) Color.Green else Color.Red,
@@ -260,7 +289,14 @@ fun PhoneField(
 }
 
 /**
- * Componente: Campo de email con validación
+ * Campo de entrada de email con validación en tiempo real.
+ * Muestra colores verde (válido) o rojo (inválido) según el formato.
+ *
+ * @param label Etiqueta del campo
+ * @param value Valor actual del email
+ * @param isValid Indica si el email tiene formato válido
+ * @param keyboardType Tipo de teclado a mostrar
+ * @param onChange Callback invocado cuando cambia el valor
  */
 @Composable
 fun EmailField(
@@ -288,7 +324,14 @@ fun EmailField(
 }
 
 /**
- * Componente: Campo genérico con validación
+ * Campo de entrada genérico con validación visual.
+ * Muestra colores verde (válido) o rojo (inválido) según el estado.
+ *
+ * @param label Etiqueta del campo
+ * @param value Valor actual
+ * @param isValid Indica si el valor es válido
+ * @param keyboardType Tipo de teclado a mostrar
+ * @param onChange Callback invocado cuando cambia el valor
  */
 @Composable
 fun ValidatedInputField(

@@ -68,4 +68,10 @@ sealed class AppScreens(val route: String) {
          */
         fun createRoute(categoryName: String) = "products_by_category/$categoryName"
     }
+
+    // Nueva ruta para la pantalla de mapa de prueba
+    object MapScreen: AppScreens("map_screen")
+
+    // Nueva ruta para el selector de ubicación
+    object LocationPickerScreen: AppScreens("location_picker_screen")
 }

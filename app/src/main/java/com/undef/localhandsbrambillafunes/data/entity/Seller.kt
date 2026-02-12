@@ -34,6 +34,8 @@ import androidx.room.PrimaryKey
  * @property entrepreneurship Nombre del emprendimiento asociado al vendedor.
  *
  * @property address Dirección física del vendedor o del emprendimiento.
+ * @property latitude Latitud geográfica de la ubicación del vendedor.
+ * @property longitude Longitud geográfica de la ubicación del vendedor.
  */
 @Entity(
     tableName = "SellerEntity",
@@ -55,5 +57,7 @@ data class Seller(
     val phone: String,
     val photoUrl: String? = null,
     val entrepreneurship: String,
-    val address: String
+    val address: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
