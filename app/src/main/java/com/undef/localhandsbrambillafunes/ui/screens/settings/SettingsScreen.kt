@@ -68,47 +68,48 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
+import com.undef.localhandsbrambillafunes.ui.components.LocationMapSelector
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 
+/**
+ * Pantalla de configuración de usuario.
+ * 
+ * Permite cambiar la ubicación preferida para búsqueda de productos
+ * y acceso a opciones de convertirse en vendedor.
+ * 
+ * @param navController Controlador para navegación
+ * @param settingsViewModel ViewModel que gestiona las preferencias del usuario
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
     settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>()
 ) {
-    // Se lee la ciudad seleccionada por el usuario en tiempo real a través del ViewModel
+    // Observa cambios en la ubicación seleccionada en tiempo real
     val selectedCity by settingsViewModel.userLocation.collectAsState()
 
-    // Estado para manejar el diálogo de convertirse en vendedor
+    // Controla la visibilidad del diálogo para convertirse en vendedor
     var showSellDialog by remember { mutableStateOf(false) }
 
-    // --- Lógica para recibir la ubicación seleccionada ---
-    // 1. Obtenemos el `savedStateHandle` de la entrada actual en la pila de navegación.
-    //    Este objeto nos permite recibir resultados de otras pantallas.
+    // Recibe resultados de ubicación desde otras pantallas
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-    // 2. Buscamos un valor con la clave "picked_location". Este valor lo enviará `LocationPickerScreen`.
     val pickedLocation = savedStateHandle?.get<String>("picked_location")
 
-    // 3. `LaunchedEffect` se ejecuta cuando el valor de `pickedLocation` cambia.
-    //     Esto nos permite reaccionar solo cuando hay una nueva ubicación seleccionada.
+    // Actualiza ubicación cuando se selecciona desde otra pantalla
     LaunchedEffect(pickedLocation) {
         if (pickedLocation != null) {
-            // 4. Si hay una ubicación, actualizamos el ViewModel.
             settingsViewModel.updateUserLocation(pickedLocation)
-            // 5. Limpiamos el valor del `savedStateHandle` para evitar que se reutilice
-            //    si el usuario vuelve a esta pantalla sin pasar por el selector de nuevo.
             savedStateHandle.remove<String>("picked_location")
         }
     }
 
-
     Scaffold(
-        // Barra Superior con título y acciones
+        // Barra superior con navegación y acciones
         topBar = {
             TopAppBar(
-                // Boton para volver a la pantalla anterior
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -119,14 +120,12 @@ fun SettingsScreen(
                         }
                     }
                 },
-                // Colores para la barra superior
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF242424),  // Color de fondo
-                    titleContentColor = Color.White,      // Color del texto
-                    actionIconContentColor = Color.White  // Color de los iconos de acción
+                    containerColor = Color(0xFF242424),
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 ),
                 actions = {
-                    // Botón para ir a Perfil
                     IconButton(onClick = { navController.navigate(route = AppScreens.ProfileScreen.route) }) {
                         Icon(
                             Icons.Filled.Person,
@@ -137,16 +136,14 @@ fun SettingsScreen(
             )
         },
 
-        // Implementacion para Material3:
-        // Barra inferior con navegacion principal
+        // Barra inferior con navegación principal
         bottomBar = {
-            // Navegacion inferior con iconos
             NavigationBar(
                 containerColor = Color(0xFF242424),
                 contentColor = Color.White
             ) {
 
-                // Esquema de color para los diferentes estados de los botones
+                // Opciones de navegación inferior
                 val navBarItemColors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.White,      // Ícono seleccionado
                     unselectedIconColor = Color.White,     // Ícono no seleccionado
@@ -209,7 +206,8 @@ fun SettingsScreen(
                 /* Ubicación por defecto para la búsqueda de productos */
                 LocationSettingItem(
                     selectedCity = selectedCity,
-                    onClick = { navController.navigate(AppScreens.LocationPickerScreen.route) }
+                    context = LocalContext.current,
+                    settingsViewModel = settingsViewModel
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -256,11 +254,6 @@ fun SettingsScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Botón de prueba para navegar a la pantalla del mapa
-                Button(onClick = { navController.navigate(AppScreens.MapScreen.route) }) {
-                    Text("Ver Mapa de Prueba")
-                }
             }
         }
     }
@@ -276,58 +269,67 @@ fun SettingsScreen(
 
 
 /**
- * Composable que muestra la configuración de ubicación y navega al selector de mapa.
+ * Composable que muestra y permite cambiar la ubicación por defecto
+ * usando Google Maps integrado.
  *
  * @param selectedCity La ciudad actualmente seleccionada.
- * @param onClick La acción a ejecutar cuando el usuario toca el campo.
+ * @param context Contexto para Google Maps.
+ * @param settingsViewModel ViewModel para actualizar la ubicación.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationSettingItem(
     selectedCity: String,
-    onClick: () -> Unit
+    context: android.content.Context,
+    settingsViewModel: SettingsViewModel
 ) {
+    var showMapSelector by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 8.dp)) {
 
         Text(text = "Ubicación por defecto", style = MaterialTheme.typography.titleMedium)
 
-        // Hacemos que toda el área del campo de texto sea clickeable.
-        Box(modifier = Modifier.clickable(onClick = onClick)) {
-            OutlinedTextField(
-                value = selectedCity,
-                onValueChange = {}, // No se necesita, ya que el campo es de solo lectura.
-                readOnly = true,
-                label = { Text("Ubicación seleccionada") },
-                modifier = Modifier.fillMaxWidth(),
-                // Icono para indicar que se puede cambiar la ubicación.
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.EditLocation,
-                        contentDescription = "Cambiar ubicación"
-                    )
-                },
-                // Deshabilitamos el campo para que el evento de click se propague al `Box` contenedor.
-                // Esto asegura que toda el área responda al toque.
-                enabled = false,
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledContainerColor = Color.Transparent,
-                    disabledBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Button(
+            onClick = { showMapSelector = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EditLocation,
+                contentDescription = "Cambiar ubicación",
+                modifier = Modifier.padding(end = 8.dp)
             )
+            Text(selectedCity.ifEmpty { "Seleccionar ubicación" })
         }
+    }
+
+    // Selector de ubicación con Google Maps - abre diálogo para cambiar ubicación preferida
+    if (showMapSelector) {
+        LocationMapSelector(
+            title = "Selecciona tu ubicación por defecto",
+            initialAddress = selectedCity,
+            context = context,
+            onLocationSelected = { selectedAddress, latitude, longitude ->
+                settingsViewModel.updateUserLocation(selectedAddress, latitude, longitude)
+                showMapSelector = false
+            },
+            onDismiss = { showMapSelector = false },
+            confirmButtonText = "Guardar Ubicación"
+        )
     }
 }
 
+/**
+ * Sección de selección de categorías favoritas.
+ * Muestra todas las categorías disponibles y permite al usuario seleccionar sus favoritas.
+ *
+ * @param settingsViewModel ViewModel que gestiona las categorías favoritas
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FavoriteCategoriesSection(settingsViewModel: SettingsViewModel) {
-    // Observamos los dos flujos desde el ViewModel
+    // Observa todos las categorías y las favoritas seleccionadas en tiempo real
     val allCategories by settingsViewModel.allCategories.collectAsState()
     val favoriteCategories by settingsViewModel.favoriteCategories.collectAsState()
 
@@ -452,7 +454,7 @@ fun SupportEmailLink() {
 
                             // Se crea el Intent principal con la acción SEND, que sí respeta el asunto y el cuerpo.
                             val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                                putExtra(Intent.EXTRA_EMAIL, arrayOf("truktekalert@gmail.com")) // Usar la variable correcta
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("soporte.localhands@gmail.com")) // Usar la variable correcta
                                 putExtra(Intent.EXTRA_SUBJECT, "Soporte - App Manos Locales")
                                 putExtra(Intent.EXTRA_TEXT, emailBody)
 
