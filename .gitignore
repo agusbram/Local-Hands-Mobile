@@ -35,7 +35,6 @@ captures/
 *.iml
 *.hprof
 *.log
-*.apk
 *.ap_
 *.db
 *.db-journal
