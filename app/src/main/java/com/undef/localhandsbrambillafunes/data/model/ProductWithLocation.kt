@@ -1,5 +1,6 @@
 package com.undef.localhandsbrambillafunes.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import com.undef.localhandsbrambillafunes.data.entity.Product
 
@@ -10,11 +11,11 @@ import com.undef.localhandsbrambillafunes.data.entity.Product
  * del `Seller` que lo vende, simplificando el acceso a esta información en la UI.
  *
  * @property product El objeto `Product` completo, embebido en esta clase.
- * @property latitude La latitud de la ubicación del vendedor.
- * @property longitude La longitud de la ubicación del vendedor.
+ * @property sellerLatitude La latitud de la ubicación del vendedor.
+ * @property sellerLongitude La longitud de la ubicación del vendedor.
  */
 data class ProductWithLocation(
     @Embedded val product: Product,
-    val latitude: Double?,
-    val longitude: Double?
+    @ColumnInfo(name = "seller_latitude") val sellerLatitude: Double?,
+    @ColumnInfo(name = "seller_longitude") val sellerLongitude: Double?
 )
