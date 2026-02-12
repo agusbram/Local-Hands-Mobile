@@ -40,6 +40,7 @@ import androidx.lifecycle.lifecycleScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.ui.components.LocationMapSelector
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
@@ -216,6 +217,13 @@ fun EditProductScreen(
     var images by remember { mutableStateOf(originalProduct?.images ?: emptyList()) }
     var price by remember { mutableStateOf(originalProduct?.price?.toString() ?: "") }
     var location by remember { mutableStateOf(originalProduct?.location ?: "") }
+    
+    /**
+     * Coordenadas geográficas del producto para filtrado por proximidad.
+     * Se capturan cuando el usuario selecciona una ubicación mediante Google Maps.
+     */
+    var productLatitude by remember { mutableStateOf(originalProduct?.latitude ?: 0.0) }
+    var productLongitude by remember { mutableStateOf(originalProduct?.longitude ?: 0.0) }
 
     val isEditing = originalProduct != null
     // Validaciones
@@ -335,7 +343,16 @@ fun EditProductScreen(
                     unfocusedIndicatorColor = if (isPriceValid) Color.Green.copy(0.6f) else Color.Red.copy(0.6f)
                 )
             )
-            LocationDropdown(selectedLocation = location, onLocationSelected = { location = it })
+            LocationDropdown(
+                selectedLocation = location, 
+                preselectedFromSeller = producer, // Pre-seleccionar con ubicación del emprendimiento
+                context = context,
+                onLocationSelected = { newLocation, latitude, longitude ->
+                    location = newLocation
+                    productLatitude = latitude
+                    productLongitude = longitude
+                }
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -352,6 +369,8 @@ fun EditProductScreen(
                             images = images,
                             price = price.toDoubleOrNull() ?: 0.0,
                             location = location,
+                            latitude = productLatitude,
+                            longitude = productLongitude,
                             ownerId = currentUserIdState.value ?: originalProduct?.ownerId
                         )
                         if (isEditing) {
@@ -420,7 +439,7 @@ fun CategoryDropdown(
     Box {
         OutlinedTextField(
             value = selectedCategory,
-            onValueChange = {},
+            onValueChange = {}, 
             readOnly = true,
             label = { Text("Categoría") },
             modifier = Modifier.fillMaxWidth(),
@@ -452,57 +471,57 @@ fun CategoryDropdown(
 }
 
 /**
- * Composable que muestra un menú desplegable de selección de localidades de Córdoba, Argentina.
+ * Composable que muestra un menú desplegable de selección de localidades
+ * con opción de seleccionar desde Google Maps.
  *
- * Esta función permite al usuario seleccionar su ubicación entre una lista completa de localidades
- * de la provincia de Córdoba. La búsqueda es dinámica: al escribir en el campo, la lista se filtra automáticamente.
- *
- * ## Características:
- * - Lista completa de localidades de Córdoba.
- * - Filtro en tiempo real para facilitar la búsqueda.
- * - Integración con formularios de productos u otros usos.
- *
- * @param selectedLocation Valor actual seleccionado por el usuario.
- * @param onLocationSelected Función callback que se ejecuta al seleccionar una nueva localidad.
+ * @param selectedLocation Valor actual seleccionado
+ * @param preselectedFromSeller Nilai pre-seleccionada del emprendimiento (para autocompletar)
+ * @param context Contexto para Google Maps
+ * @param onLocationSelected Callback con la ubicación seleccionada
  */
 @Composable
 fun LocationDropdown(
     selectedLocation: String,
-    onLocationSelected: (String) -> Unit
+    preselectedFromSeller: String = "",
+    context: android.content.Context,
+    onLocationSelected: (String, Double, Double) -> Unit
 ) {
-    val allLocations = listOf(
-        "Córdoba Capital", "Villa Carlos Paz", "Alta Gracia", "Jesús María", "Río Cuarto",
-        "Villa María", "Villa Dolores", "Villa General Belgrano", "Cosquín", "La Cumbre",
-        "Capilla del Monte", "Mina Clavero", "San Marcos Sierras", "Villa Allende", "Unquillo",
-        "Salsipuedes", "Colonia Caroya", "La Falda", "Malagueño", "Monte Cristo", "Río Ceballos",
-        "Dean Funes", "Bell Ville", "Arroyito", "San Francisco", "Leones", "Corral de Bustos",
-        "Laboulaye", "Huinca Renancó", "La Carlota", "Cruz del Eje", "Marcos Juárez", "General Deheza",
-        "General Cabrera", "Morteros", "Oncativo", "Las Varillas", "Villa Nueva", "Pilar", "Villa del Rosario",
-        "Laguna Larga", "Tancacha", "Oliva", "La Calera", "Monte Maíz", "Embalse", "La Paz", "Almafuerte",
-        "Bialet Massé", "Santa Rosa de Calamuchita", "Villa Rumipal", "Villa Yacanto", "Nono", "Tanti"
+    val cordobaLocations = listOf(
+        "Córdoba", "Villa Carlos Paz", "La Falda", "Jesús María", "Alta Gracia", "Río Cuarto",
+        "Villa María", "San Francisco", "Bell Ville", "Marcos Juárez", "Cruz del Eje", "Mina Clavero"
     )
 
     var expanded by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(selectedLocation) }
+    var showMapSelector by remember { mutableStateOf(false) }
 
-    val filteredLocations = remember(searchText) {
-        allLocations.filter { it.contains(searchText, ignoreCase = true) }
+    // Auto-completar con ubicación del emprendimiento si está disponible  
+    LaunchedEffect(preselectedFromSeller) {
+        if (preselectedFromSeller.isNotEmpty() && selectedLocation.isEmpty()) {
+            searchText = preselectedFromSeller
+            onLocationSelected(preselectedFromSeller, 0.0, 0.0)
+        }
+    }
+
+    val filteredLocations = if (searchText.isEmpty() || searchText == selectedLocation) {
+        cordobaLocations
+    } else {
+        cordobaLocations.filter { it.contains(searchText, ignoreCase = true) }
     }
 
     Box {
         OutlinedTextField(
-            value = searchText.ifBlank { selectedLocation },
-            onValueChange = {
+            value = searchText,
+            onValueChange = { 
                 searchText = it
                 expanded = true
             },
-            label = { Text("Ubicación") },
+            label = { Text("Localidad") },
             modifier = Modifier.fillMaxWidth(),
-            readOnly = false,
             trailingIcon = {
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = "Expandir"
                     )
                 }
@@ -510,98 +529,102 @@ fun LocationDropdown(
         )
 
         DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth()
+            expanded = expanded && filteredLocations.isNotEmpty(),
+            onDismissRequest = { expanded = false }
         ) {
+            // Opción de seleccionar desde Google Maps
+            DropdownMenuItem(
+                text = { Text("📍 Seleccionar en Google Maps") },
+                onClick = {
+                    showMapSelector = true
+                    expanded = false
+                }
+            )
+            
+            // Separador
+            HorizontalDivider()
+            
             filteredLocations.forEach { location ->
                 DropdownMenuItem(
                     text = { Text(location) },
                     onClick = {
-                        onLocationSelected(location)
                         searchText = location
+                        onLocationSelected(location, 0.0, 0.0)  // Coordenadas por defecto para ubicaciones preseleccionadas
                         expanded = false
                     }
                 )
             }
         }
     }
+
+    // Selector de ubicación con Google Maps
+    if (showMapSelector) {
+        LocationMapSelector(
+            title = "Selecciona la localidad del producto",
+            initialAddress = searchText,
+            context = context,
+            onLocationSelected = { selectedAddress, latitude, longitude ->
+                searchText = selectedAddress
+                onLocationSelected(selectedAddress, latitude, longitude)
+                showMapSelector = false
+            },
+            onDismiss = { showMapSelector = false },
+            confirmButtonText = "Confirmar Localidad"
+        )
+    }
 }
 
 /**
+ * Composable que permite al usuario seleccionar múltiples imágenes desde la galería.
  *
- * MultiImagePickerField: componente reutilizable para selección de imágenes.
- * Al seleccionar una o varias imágenes, se guardan en almacenamiento interno
- * y se actualiza el estado `images`, listo para ser persistido en Room.
- * Selector visual para múltiples imágenes desde la galería del dispositivo.
+ * Muestra una lista horizontal de las imágenes seleccionadas y un botón para añadir más.
  *
- * Esta función composable permite al usuario seleccionar múltiples imágenes de su galería utilizando
- * `ActivityResultContracts.GetMultipleContents`. Las imágenes seleccionadas se visualizan en una fila horizontal.
- *
- * Está diseñada para integrarse con formularios o pantallas de edición de contenido (por ejemplo, productos
- * con imágenes en una aplicación de marketplace).
- *
- * ## Características:
- * - Permite seleccionar múltiples imágenes a la vez.
- * - Muestra las imágenes seleccionadas en miniaturas (LazyRow).
- * - Utiliza `rememberLauncherForActivityResult` para gestionar el resultado de la selección.
- *
- * ## Parámetros:
- * @param selectedUris Lista actual de imágenes seleccionadas (como URIs).
- * @param onImagesSelected Función callback que se invoca con la nueva lista de URIs seleccionadas cuando el usuario elige imágenes.
- *
- * ## Ejemplo de uso:
- * ```
- * var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
- * MultiImagePickerField(
- *     selectedUris = imageUris,
- *     onImagesSelected = { imageUris = it }
- * )
- * ```
- *
- * ## Consideraciones:
- * - El parámetro `imageUris.map { it.toString() }` puede usarse para almacenar las rutas en Room.
- * - En emuladores o dispositivos físicos se requiere acceso al sistema de archivos (la galería).
+ * @param selectedPaths Lista de URIs (como Strings) de las imágenes ya seleccionadas.
+ * @param onImagesSelected Callback que se invoca con la nueva lista de URIs cuando el usuario selecciona imágenes.
  */
 @Composable
-fun MultiImagePickerField(
-    selectedPaths: List<String>,
-    onImagesSelected: (List<String>) -> Unit
-) {
+fun MultiImagePickerField(selectedPaths: List<String>, onImagesSelected: (List<String>) -> Unit) {
     val context = LocalContext.current
 
-    // Launcher para seleccionar múltiples imágenes desde el explorador
+    // Launcher para seleccionar múltiples imágenes
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
-        val paths = uris.mapNotNull { uri ->
-            copyUriToInternalStorage(context, uri)
+        contract = ActivityResultContracts.GetMultipleContents(),
+        onResult = { uris: List<Uri> ->
+            // Convertir URIs a Strings y añadir a la lista existente
+            val newPaths = uris.map { uri ->
+                // Copiar el archivo a almacenamiento interno para obtener una ruta persistente
+                File(context.cacheDir, "temp_${System.currentTimeMillis()}").apply {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }.absolutePath
+            }
+            onImagesSelected(selectedPaths + newPaths)
         }
-        if (paths.isNotEmpty()) {
-            onImagesSelected(paths)
-        }
-    }
+    )
 
-    Column {
-        // Botón que abre el selector de imágenes
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        // Botón para lanzar el selector de imágenes
         Button(onClick = { launcher.launch("image/*") }) {
-            Text("Seleccionar imágenes")
+            Text("Seleccionar Imágenes")
         }
 
-        // Vista previa horizontal de las imágenes seleccionadas
-        if (selectedPaths.isNotEmpty()) {
-            LazyRow(modifier = Modifier.padding(top = 8.dp)) {
-                items(selectedPaths) { path ->
-                    AsyncImage(
-                        model = File(path), // Carga desde archivo local
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // LazyRow para mostrar las previsualizaciones de las imágenes seleccionadas
+        LazyRow {
+            items(selectedPaths) {
+                AsyncImage(
+                    model = it,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
             }
         }
     }
@@ -674,4 +697,3 @@ fun sendEmailToInterestedUsers(context: Context, emails: List<String>, entrepren
         Toast.makeText(context, "No tienes aplicaciones de correo instaladas", Toast.LENGTH_SHORT).show()
     }
 }
-

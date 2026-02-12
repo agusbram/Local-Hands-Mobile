@@ -26,6 +26,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Data class que representa el estado completo de la pantalla de inicio.
@@ -44,7 +48,7 @@ data class HomeScreenState(
  * Mantiene y proporciona los datos necesarios para la interfaz de usuario, incluso durante
  * cambios de configuración como rotaciones de pantalla.
  *
- * ## ¿Para qué sirve?
+ * ## ¿Para qué sirve?**
  * - 🔄 Recupera datos desde el `Repository` y los expone a la UI mediante `State`, `LiveData` o `StateFlow`.
  * - 🎯 Contiene la lógica de presentación (formateo, validación, control de estado).
  * - 🚫 No contiene lógica de negocio ni de acceso directo a la base de datos.
@@ -99,19 +103,43 @@ class ProductViewModel @Inject constructor(
 
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
-     * Combina dos flujos: la lista total de productos y las categorías favoritas del usuario.
-     * Cada vez que uno de los dos flujos cambia, este se recalcula automáticamente.
+     * Combina la lista total de productos, las categorías favoritas y las coordenadas del usuario.
+     * Cada vez que uno de los flujos cambia, este se recalcula automáticamente.
+     * 
+     * Si el usuario ha especificado una ubicación, se ordenan los productos 
+     * por proximidad (distancia) a su ubicación.
      */
     val homeScreenState: StateFlow<HomeScreenState> = combine(
         repository.getAllProducts(),
-        userPreferencesRepository.favoriteCategoriesFlow
-    ) { allProducts, favoriteCategories ->
+        userPreferencesRepository.favoriteCategoriesFlow,
+        userPreferencesRepository.userLatitudeFlow,
+        userPreferencesRepository.userLongitudeFlow
+    ) { allProducts, favoriteCategories, userLat, userLon ->
+
+        /**
+         * Ordena los productos por distancia si el usuario ha especificado una ubicación
+         * (indicado por coordenadas no nulas y no igual a 0.0).
+         */
+        val sortedProducts = if (userLat != 0.0 && userLon != 0.0) {
+            // Usuario ha especificado una ubicación - ordenar por proximidad
+            allProducts.sortedBy { product ->
+                if (product.latitude != 0.0 && product.longitude != 0.0) {
+                    calculateDistance(userLat, userLon, product.latitude, product.longitude)
+                } else {
+                    Double.MAX_VALUE // Productos sin ubicación van al final
+                }
+            }
+        } else {
+            // No hay ubicación de usuario - mantener orden original
+            allProducts
+        }
+
         if (favoriteCategories.isEmpty()) {
             // Si no hay favoritas, todos los productos van a la lista "otherProducts"
-            HomeScreenState(otherProducts = allProducts)
+            HomeScreenState(otherProducts = sortedProducts)
         } else {
             // Si hay favoritas, separamos los productos
-            val (favorites, others) = allProducts.partition { it.category in favoriteCategories }
+            val (favorites, others) = sortedProducts.partition { it.category in favoriteCategories }
             // Agrupamos los favoritos por su categoría
             val groupedFavorites = favorites.groupBy { it.category }
             HomeScreenState(favoriteProducts = groupedFavorites, otherProducts = others)
@@ -154,6 +182,7 @@ class ProductViewModel @Inject constructor(
     init {
         syncProductsFromApi()
     }
+
 
     /**
      * Sincroniza los productos desde la API hacia la base de datos local.
@@ -298,4 +327,21 @@ class ProductViewModel @Inject constructor(
     fun getFavorites(userId: Int): StateFlow<List<Product>> =
         repository.getFavoritesForUser(userId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Calcula la distancia en kilómetros entre dos coordenadas geográficas usando la fórmula de Haversine.
+     */
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadiusKm = 6371.0
+
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        return earthRadiusKm * c
+    }
 }

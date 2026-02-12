@@ -97,7 +97,7 @@ interface UserDao {
      * @return Instancia de [User], o `null` si no se encuentra.
      */
     @Query("SELECT * FROM UserEntity WHERE id = :id")
-    suspend fun getUserById(id: Int): User
+    suspend fun getUserById(id: Int): User?
 
     /**
      * Obtiene un usuario por su ID.
