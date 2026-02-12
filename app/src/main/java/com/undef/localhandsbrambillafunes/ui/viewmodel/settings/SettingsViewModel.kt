@@ -47,16 +47,43 @@ class SettingsViewModel @Inject constructor(
         )
 
     /**
-     * Actualiza la ubicación del usuario.
+     * Latitud de la ubicación seleccionada por el usuario.
+     * Se utiliza para cálculos de proximidad de productos.
+     * Se expone como StateFlow desde el repositorio para reactividad.
+     */
+    val userLatitude: StateFlow<Double> = userPreferencesRepository.userLatitudeFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0.0
+        )
+
+    /**
+     * Longitud de la ubicación seleccionada por el usuario.
+     * Se utiliza para cálculos de proximidad de productos.
+     * Se expone como StateFlow desde el repositorio para reactividad.
+     */
+    val userLongitude: StateFlow<Double> = userPreferencesRepository.userLongitudeFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0.0
+        )
+
+    /**
+     * Actualiza la ubicación del usuario, incluyendo las coordenadas geográficas.
      *
      * Lanza una corrutina en el [viewModelScope] para ejecutar
      * la operación de guardado de forma asíncrona y segura.
      *
-     * @param newLocation Nueva ubicación ingresada por el usuario.
+     * @param newLocation Nueva ubicación ingresada por el usuario (ej: "Buenos Aires, Argentina").
+     * @param latitude Latitud de la ubicación (coordenada geográfica).
+     * @param longitude Longitud de la ubicación (coordenada geográfica).
      */
-    fun updateUserLocation(newLocation: String) {
+    fun updateUserLocation(newLocation: String, latitude: Double = 0.0, longitude: Double = 0.0) {
         viewModelScope.launch {
             userPreferencesRepository.saveUserLocation(newLocation)
+            userPreferencesRepository.saveUserCoordinates(latitude, longitude)
         }
     }
 
