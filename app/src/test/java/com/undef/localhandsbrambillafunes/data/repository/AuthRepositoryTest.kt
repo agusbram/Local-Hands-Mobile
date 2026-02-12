@@ -112,7 +112,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con email existente", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error correcto",
-            "El email ya esta registrado!",
+            "El email ya está registrado!",
             result.exceptionOrNull()?.message
         )
         coVerify { userDao.isEmailExists(user.email) }
@@ -180,7 +180,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con contraseña incorrecta", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Credenciales incorrectos!",
+            "Credenciales incorrectas!",
             result.exceptionOrNull()?.message
         )
     }
@@ -200,7 +200,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con email inexistente", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Credenciales incorrectos!",
+            "Credenciales incorrectas!",
             result.exceptionOrNull()?.message
         )
     }
@@ -353,7 +353,7 @@ class AuthRepositoryTest {
         assertTrue("Verificación debe fallar con código incorrecto", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Codigo incorrecto!",
+            "Código incorrecto!",
             result.exceptionOrNull()?.message
         )
     }
