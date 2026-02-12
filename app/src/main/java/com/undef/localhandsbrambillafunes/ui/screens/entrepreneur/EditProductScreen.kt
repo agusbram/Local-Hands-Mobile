@@ -40,6 +40,7 @@ import androidx.lifecycle.lifecycleScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
+import com.undef.localhandsbrambillafunes.ui.components.LocationMapSelector
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
@@ -207,6 +208,13 @@ fun EditProductScreen(
     var images by remember { mutableStateOf(originalProduct?.images ?: emptyList()) }
     var price by remember { mutableStateOf(originalProduct?.price?.toString() ?: "") }
     var location by remember { mutableStateOf(originalProduct?.location ?: "") }
+    
+    /**
+     * Coordenadas geográficas del producto para filtrado por proximidad.
+     * Se capturan cuando el usuario selecciona una ubicación mediante Google Maps.
+     */
+    var productLatitude by remember { mutableStateOf(originalProduct?.latitude ?: 0.0) }
+    var productLongitude by remember { mutableStateOf(originalProduct?.longitude ?: 0.0) }
 
     val isEditing = originalProduct != null
     // Validaciones
@@ -326,7 +334,16 @@ fun EditProductScreen(
                     unfocusedIndicatorColor = if (isPriceValid) Color.Green.copy(0.6f) else Color.Red.copy(0.6f)
                 )
             )
-            LocationDropdown(selectedLocation = location, onLocationSelected = { location = it })
+            LocationDropdown(
+                selectedLocation = location, 
+                preselectedFromSeller = producer, // Pre-seleccionar con ubicación del emprendimiento
+                context = context,
+                onLocationSelected = { newLocation, latitude, longitude ->
+                    location = newLocation
+                    productLatitude = latitude
+                    productLongitude = longitude
+                }
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -343,6 +360,8 @@ fun EditProductScreen(
                             images = images,
                             price = price.toDoubleOrNull() ?: 0.0,
                             location = location,
+                            latitude = productLatitude,
+                            longitude = productLongitude,
                             ownerId = currentUserIdState.value ?: originalProduct?.ownerId
                         )
                         if (isEditing) {
@@ -443,35 +462,50 @@ fun CategoryDropdown(
 }
 
 /**
- * Composable que muestra un menú desplegable de selección de localidades de Córdoba, Argentina.
+ * Composable que muestra un menú desplegable de selección de localidades
+ * con opción de seleccionar desde Google Maps.
  *
- * Esta función permite al usuario seleccionar su ubicación entre una lista completa de localidades
- * de la provincia de Córdoba. La búsqueda es dinámica: al escribir en el campo, la lista se filtra automáticamente.
+ * @param selectedLocation Valor actual seleccionado
+ * @param preselectedFromSeller Nilai pre-seleccionada del emprendimiento (para autocompletar)
+ * @param context Contexto para Google Maps
+ * @param onLocationSelected Callback con la ubicación seleccionada
+ */
+/**
+ * Composable que renderiza un menú desplegable para seleccionar una ubicación de producto.
  *
- * ## Características:
- * - Lista completa de localidades de Córdoba.
- * - Filtro en tiempo real para facilitar la búsqueda.
- * - Integración con formularios de productos u otros usos.
+ * Permite al usuario elegir de una lista predefinida de localidades en Córdoba,
+ * o seleccionar una ubicación personalizada usando Google Maps.
+ * Captura las coordenadas geográficas cuando se selecciona desde Maps.
  *
- * @param selectedLocation Valor actual seleccionado por el usuario.
- * @param onLocationSelected Callback invocado cuando el usuario selecciona una localidad de la lista.
+ * @param selectedLocation Ubicación actualmente seleccionada.
+ * @param preselectedFromSeller Ubicación predeterminada del emprendimiento/vendedor.
+ * @param context Contexto para acceder a Google Maps.
+ * @param onLocationSelected Callback que devuelve (address, latitude, longitude) cuando se selecciona una ubicación.
  */
 @Composable
 fun LocationDropdown(
     selectedLocation: String,
-    onLocationSelected: (String) -> Unit
+    preselectedFromSeller: String = "",
+    context: android.content.Context,
+    onLocationSelected: (String, Double, Double) -> Unit
 ) {
-    // Lista completa de localidades de Córdoba (podría venir de un ViewModel o un recurso)
     val cordobaLocations = listOf(
         "Córdoba", "Villa Carlos Paz", "La Falda", "Jesús María", "Alta Gracia", "Río Cuarto",
         "Villa María", "San Francisco", "Bell Ville", "Marcos Juárez", "Cruz del Eje", "Mina Clavero"
-        // Añadir más localidades si es necesario
     )
 
     var expanded by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf(selectedLocation) }
+    var showMapSelector by remember { mutableStateOf(false) }
 
-    // Filtrar localidades según el texto de búsqueda
+    // Auto-completar con ubicación del emprendimiento si está disponible  
+    LaunchedEffect(preselectedFromSeller) {
+        if (preselectedFromSeller.isNotEmpty() && selectedLocation.isEmpty()) {
+            searchText = preselectedFromSeller
+            onLocationSelected(preselectedFromSeller, 0.0, 0.0)
+        }
+    }
+
     val filteredLocations = if (searchText.isEmpty() || searchText == selectedLocation) {
         cordobaLocations
     } else {
@@ -483,7 +517,7 @@ fun LocationDropdown(
             value = searchText,
             onValueChange = { 
                 searchText = it
-                expanded = true // Mantener el menú abierto mientras se escribe
+                expanded = true
             },
             label = { Text("Localidad") },
             modifier = Modifier.fillMaxWidth(),
@@ -501,17 +535,45 @@ fun LocationDropdown(
             expanded = expanded && filteredLocations.isNotEmpty(),
             onDismissRequest = { expanded = false }
         ) {
+            // Opción de seleccionar desde Google Maps
+            DropdownMenuItem(
+                text = { Text("📍 Seleccionar en Google Maps") },
+                onClick = {
+                    showMapSelector = true
+                    expanded = false
+                }
+            )
+            
+            // Separador
+            HorizontalDivider()
+            
             filteredLocations.forEach { location ->
                 DropdownMenuItem(
                     text = { Text(location) },
                     onClick = {
                         searchText = location
-                        onLocationSelected(location)
+                        onLocationSelected(location, 0.0, 0.0)  // Coordenadas por defecto para ubicaciones preseleccionadas
                         expanded = false
                     }
                 )
             }
         }
+    }
+
+    // Selector de ubicación con Google Maps
+    if (showMapSelector) {
+        LocationMapSelector(
+            title = "Selecciona la localidad del producto",
+            initialAddress = searchText,
+            context = context,
+            onLocationSelected = { selectedAddress, latitude, longitude ->
+                searchText = selectedAddress
+                onLocationSelected(selectedAddress, latitude, longitude)
+                showMapSelector = false
+            },
+            onDismiss = { showMapSelector = false },
+            confirmButtonText = "Confirmar Localidad"
+        )
     }
 }
 
