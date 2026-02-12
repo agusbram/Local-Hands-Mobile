@@ -134,6 +134,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)    // Para ver Previews en Android Studio
 
     testImplementation(libs.junit)
+    // MockK for mocking in unit tests
+    testImplementation("io.mockk:mockk:1.13.9")
+    // Coroutines test for testing suspend functions
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    // Turbine for testing Flows
+    testImplementation("app.cash.turbine:turbine:1.0.0")
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
