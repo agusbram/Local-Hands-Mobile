@@ -23,7 +23,7 @@ interface ProductDao {
      * @return [Flow] que emite una lista de todos los productos con su ubicación.
      */
     @Query("""
-        SELECT p.*, s.latitude, s.longitude
+        SELECT p.*, s.latitude as seller_latitude, s.longitude as seller_longitude
         FROM ProductEntity p
         LEFT JOIN SellerEntity s ON p.ownerId = s.id
     """)
