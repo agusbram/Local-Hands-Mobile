@@ -1,13 +1,10 @@
 package com.undef.localhandsbrambillafunes.ui.screens.profile
 
 import android.net.Uri
-import android.util.Log
-
 import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -32,6 +29,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.EditLocation
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -71,21 +69,22 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.undef.localhandsbrambillafunes.R
 import com.undef.localhandsbrambillafunes.data.entity.UserRole
+import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.ProfileViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.profile.UiEvent
-import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
-import com.undef.localhandsbrambillafunes.R
-import com.undef.localhandsbrambillafunes.ui.components.SellerConversionHandler
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
+import com.undef.localhandsbrambillafunes.ui.viewmodel.settings.SettingsViewModel
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController,
-                  settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
-                  profileViewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>()
+fun ProfileScreen(
+    navController: NavController,
+    settingsViewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
+    profileViewModel: ProfileViewModel = hiltViewModel<ProfileViewModel>()
 ) {
     // Estado para manejar el diálogo de convertirse en vendedor
     var showSellDialog by remember { mutableStateOf(false) }
@@ -135,14 +134,28 @@ fun ProfileScreen(navController: NavController,
         contract = ActivityResultContracts.GetContent() //Recibe la ruta que se define en launch mas abajo con el launcher
     ) { uri: Uri? ->
         // Comprueba que el usuario realmente seleccionó una imagen
-        if(uri != null) {
+        if (uri != null) {
             profileViewModel.changeProfilePicture(uri)
         }
     }
 
-    // Refrescar la foto al entrar a la pantalla por única vez
+    // --- Lógica para recibir la ubicación seleccionada del mapa ---
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val pickedLocation = savedStateHandle?.get<String>("picked_location")
+
+    LaunchedEffect(pickedLocation) {
+        if (pickedLocation != null) {
+            val coordinates = pickedLocation.split(",").map { it.trim().toDoubleOrNull() }
+            if (coordinates.size == 2 && coordinates[0] != null && coordinates[1] != null) {
+                profileViewModel.updateLocation(coordinates[0]!!, coordinates[1]!!)
+            }
+            savedStateHandle.remove<String>("picked_location") // Limpiar para futuras selecciones
+        }
+    }
+
+    // Refrescar el perfil al entrar a la pantalla
     LaunchedEffect(Unit) {
-        profileViewModel.refreshPhotoUrl()
+        profileViewModel.refreshUserProfile()
     }
 
     /**
@@ -158,10 +171,12 @@ fun ProfileScreen(navController: NavController,
 
                     // Si el mensaje es sobre la foto, refrescar
                     if (event.message.contains("foto", ignoreCase = true) ||
-                        event.message.contains("photo", ignoreCase = true)) {
+                        event.message.contains("photo", ignoreCase = true)
+                    ) {
                         profileViewModel.refreshPhotoUrl()
                     }
                 }
+
                 is UiEvent.NavigateAndClearStack -> {
                     // Navega y limpia todo el backstack
                     navController.navigate(event.route) {
@@ -182,7 +197,7 @@ fun ProfileScreen(navController: NavController,
             TopAppBar(
                 // Boton para volver a la pantalla anterior
                 title = {
-                    Row (verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 Icons.Filled.ArrowBackIosNew,
@@ -230,33 +245,33 @@ fun ProfileScreen(navController: NavController,
                 // Boton de Home o inicio
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio")},
+                    label = { Text("Inicio") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(route = AppScreens.HomeScreen.route) }
                 )
                 // Boton de Favoritos
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Favorite, contentDescription = "Favoritos") },
-                    label = { Text("Favoritos")},
+                    label = { Text("Favoritos") },
                     colors = navBarItemColors,
-                    selected = true,
-                    onClick = { navController.navigate(AppScreens.FavoritesScreen.route)}
+                    selected = false,
+                    onClick = { navController.navigate(AppScreens.FavoritesScreen.route) }
                 )
                 // Boton para vender
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Shop, contentDescription = "Vender") },
-                    label = { Text("Vender")},
+                    label = { Text("Vender") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { showSellDialog = true }
                 )
                 // Boton de Categorias
                 NavigationBarItem(
                     icon = { Icon(Icons.Filled.Menu, contentDescription = "Categorias") },
-                    label = { Text("Categorias")},
+                    label = { Text("Categorias") },
                     colors = navBarItemColors,
-                    selected = true,
+                    selected = false,
                     onClick = { navController.navigate(AppScreens.CategoryScreen.route) }
                 )
             }
@@ -278,9 +293,6 @@ fun ProfileScreen(navController: NavController,
                     modifier = Modifier.size(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Obtener el estado del perfil en tiempo real
-                    val profileState by profileViewModel.uiState.collectAsState()
-
                     // Obtener la URL de manera segura
                     val currentPhotoUrl = profileState.photoUrl
 
@@ -451,9 +463,10 @@ fun ProfileScreen(navController: NavController,
                         }
                     }
 
-                    // Campo editable del atributo emprendimiento (se muestra únicamente si es vendedor)
+                    // --- Campos específicos para el vendedor ---
                     if (userRole == UserRole.SELLER) {
                         Spacer(modifier = Modifier.height(8.dp))
+                        // Campo editable del atributo emprendimiento
                         EditableProfileItem(
                             label = "Emprendimiento",
                             value = editState.entrepreneurship,
@@ -461,6 +474,18 @@ fun ProfileScreen(navController: NavController,
                             onValueChange = { newValue ->
                                 val newState = editState.copy(entrepreneurship = newValue)
                                 profileViewModel.onFieldChange(newState)
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Campo para ver y editar la ubicación del emprendimiento
+                        LocationProfileItem(
+                            address = editState.address,
+                            latitude = editState.latitude,
+                            longitude = editState.longitude,
+                            onClick = {
+                                navController.navigate(AppScreens.LocationPickerScreen.route)
                             }
                         )
                     }
@@ -700,9 +725,10 @@ fun EditableProfileItem(
     isValid: Boolean,
     onValueChange: (String) -> Unit
 ) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
     ) {
         OutlinedTextField(
             value = value,
@@ -715,6 +741,41 @@ fun EditableProfileItem(
                 focusedIndicatorColor = if (isValid) Color.Green else Color.Red,
                 unfocusedIndicatorColor = if (isValid) Color.Green.copy(0.6f) else Color.Red.copy(0.6f)
             )
+        )
+    }
+}
+
+/**
+ * Composable reutilizable para mostrar y editar la ubicación del vendedor.
+ *
+ * @param latitude Latitud actual.
+ * @param longitude Longitud actual.
+ * @param onClick Acción a ejecutar al tocar el campo.
+ */
+@Composable
+fun LocationProfileItem(address: String, latitude: Double?, longitude: Double?, onClick: () -> Unit) {
+    val locationText = if (address.isNotEmpty()) {
+        address
+    } else {
+        "Ubicación no establecida"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        OutlinedTextField(
+            value = locationText,
+            onValueChange = {},
+            label = { Text("Ubicación del Emprendimiento") },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+            trailingIcon = {
+                IconButton(onClick = onClick) {
+                    Icon(Icons.Outlined.EditLocation, "Editar ubicación")
+                }
+            }
         )
     }
 }

@@ -6,6 +6,7 @@ import com.undef.localhandsbrambillafunes.data.dao.ProductDao
 import com.undef.localhandsbrambillafunes.data.dto.ProductCreateDTO
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.entity.Favorite
+import com.undef.localhandsbrambillafunes.data.model.ProductWithLocation
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -292,6 +293,13 @@ class ProductRepository @Inject constructor(
     }
 
     // --- PRODUCTOS EN LOCAL ---
+
+    /**
+     * Obtiene todos los productos junto con la ubicación de su vendedor.
+     */
+    fun getAllProductsWithLocation(): Flow<List<ProductWithLocation>> {
+        return productDao.getAllProductsWithLocation()
+    }
 
     /**
      * Obtiene todos los productos como un flujo reactivo.

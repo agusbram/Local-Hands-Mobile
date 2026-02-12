@@ -19,6 +19,8 @@ package com.undef.localhandsbrambillafunes.data.dto
  * @property address Dirección física del vendedor.
  * @property entrepreneurship Nombre del emprendimiento asociado.
  * @property photoUrl Url de la foto de perfil
+ * @property latitude Latitud de la ubicación del emprendimiento.
+ * @property longitude Longitud de la ubicación del emprendimiento.
  */
 data class SellerPatchDTO(
     val name: String,
@@ -26,5 +28,7 @@ data class SellerPatchDTO(
     val phone: String,
     val address: String,
     val entrepreneurship: String,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

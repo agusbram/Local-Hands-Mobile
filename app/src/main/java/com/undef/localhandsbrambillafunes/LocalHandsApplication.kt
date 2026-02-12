@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.room.Room
 import com.undef.localhandsbrambillafunes.data.db.AppDatabase
+import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.repository.ProductRepository
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserRepository
@@ -34,22 +35,42 @@ class LocalHandsApplication : Application() {
             try {
                 Log.d("LocalHandsApplication", "Iniciando sincronización de datos desde la API...")
                 
-                // 1. Sincronizar vendedores desde la API
+                // 1. Obtener vendedores desde la API (sin guardarlos aún)
+                var syncedSellers = emptyList<Seller>()
                 try {
-                    Log.d("LocalHandsApplication", "Sincronizando vendedores...")
-                    val syncedSellers = sellerRepository.syncSellersWithApi()
-                    Log.d("LocalHandsApplication", "Vendedores sincronizados: ${syncedSellers.size} vendedores")
-                    
-                    // 2. Crear usuarios automáticamente a partir de los vendedores sincronizados
-                    Log.d("LocalHandsApplication", "Creando usuarios a partir de vendedores...")
-                    userRepository.createUsersFromSellers(syncedSellers)
-                    Log.d("LocalHandsApplication", "Usuarios creados correctamente")
-                    
+                    Log.d("LocalHandsApplication", "Obteniendo vendedores desde API...")
+                    syncedSellers = sellerRepository.syncSellersWithApi()
+                    Log.d("LocalHandsApplication", "Vendedores obtenidos: ${syncedSellers.size} vendedores")
                 } catch (e: Exception) {
-                    Log.e("LocalHandsApplication", "Error sincronizando vendedores o creando usuarios: ${e.message}", e)
+                    Log.e("LocalHandsApplication", "Error obteniendo vendedores: ${e.message}", e)
                 }
                 
-                // 3. Sincronizar productos desde la API
+                // 2. Crear usuarios automáticamente a partir de los vendedores sincronizados
+                // IMPORTANTE: Los usuarios DEBEN crearse PRIMERO porque los vendedores tienen
+                // una clave foránea hacia la tabla de usuarios
+                try {
+                    if (syncedSellers.isNotEmpty()) {
+                        Log.d("LocalHandsApplication", "Creando usuarios a partir de vendedores...")
+                        userRepository.createUsersFromSellers(syncedSellers)
+                        Log.d("LocalHandsApplication", "Usuarios creados correctamente")
+                    }
+                } catch (e: Exception) {
+                    Log.e("LocalHandsApplication", "Error creando usuarios: ${e.message}", e)
+                }
+                
+                // 3. Guardar vendedores en la base de datos local
+                // Ahora es seguro guardarlos porque los usuarios ya existen
+                try {
+                    if (syncedSellers.isNotEmpty()) {
+                        Log.d("LocalHandsApplication", "Guardando vendedores en base de datos...")
+                        sellerRepository.saveSellers(syncedSellers)
+                        Log.d("LocalHandsApplication", "Vendedores guardados correctamente")
+                    }
+                } catch (e: Exception) {
+                    Log.e("LocalHandsApplication", "Error guardando vendedores: ${e.message}", e)
+                }
+                
+                // 4. Sincronizar productos desde la API
                 try {
                     Log.d("LocalHandsApplication", "Sincronizando productos...")
                     productRepository.syncProductsWithApi()
