@@ -117,18 +117,27 @@ fun EditProductScreen(
      * un Intent) se ejecutan en la capa de UI.
      */
     LaunchedEffect(Unit) {
-        val userId = sessionViewModel.getCurrentUserId()
-        currentUserIdState.value = userId
-        Log.d("EditProductScreen", "Usuario actual ID: $userId")
+        Log.d("EditProductScreen", "--- INICIANDO CARGA ---")
+        try {
+            val userId = sessionViewModel.getCurrentUserId()
+            currentUserIdState.value = userId
+            Log.d("EditProductScreen", "Usuario autenticado con ID: $userId")
 
-        // Cargar entrepreneurship desde SellViewModel
-        val loaded = sellViewModel.loadEntrepreneurshipForUI()
-        entrepreneurshipState.value = loaded
+            val loaded = sellViewModel.loadEntrepreneurshipForUI()
+            Log.d("EditProductScreen", "Emprendimiento cargado: '$loaded'")
 
+            entrepreneurshipState.value = loaded
+        } catch (e: Exception) {
+            Log.e("EditProductScreen", "ERROR CRITICO: ${e.message}")
+            // Si hay error, quizás quieras mandar al usuario al Login
+        }
+    }
+
+    LaunchedEffect(Unit) {
         productViewModel.emailNotificationEvent.collect { event ->
-            event?.let { (emails, entrepreneurship) ->
+            event?.let { (emails, entrepreneurship, product) ->
                 // Llamamos a la función de envío
-                sendEmailToInterestedUsers(context, emails, entrepreneurship)
+                sendEmailToInterestedUsers(context, emails, entrepreneurship, product)
                 // Reseteamos el evento en el ViewModel
                 productViewModel.resetEmailEvent()
             }
@@ -631,7 +640,7 @@ fun isValidPrice(price: String): Boolean =
  * @param emails Lista de direcciones de correo de los destinatarios.
  * @param entrepreneurshipName Nombre del emprendimiento utilizado en el asunto del correo.
  */
-fun sendEmailToInterestedUsers(context: Context, emails: List<String>, entrepreneurshipName: String) {
+fun sendEmailToInterestedUsers(context: Context, emails: List<String>, entrepreneurshipName: String, product: Product) {
     if (emails.isEmpty()) {
         Toast.makeText(context, "No hay usuarios con tus productos en favoritos", Toast.LENGTH_SHORT).show()
         return
@@ -640,12 +649,23 @@ fun sendEmailToInterestedUsers(context: Context, emails: List<String>, entrepren
     // Convertimos la lista de emails a un array de Strings
     val recipients = emails.toTypedArray()
 
+    // Armamos el cuerpo del mensaje con los datos dinámicos
+    val emailBody = """
+        Hola! Tenemos nuevas noticias para ti!
+        Hemos publicado un nuevo producto con los siguientes datos:
+        
+        Nombre: ${product.name}
+        Descripción: ${product.description}
+        Precio: $${product.price}
+        
+        Para saber más, visita nuestro emprendimiento: $entrepreneurshipName.""".trimIndent()
+
     val intent = Intent(Intent.ACTION_SENDTO).apply {
         // "mailto:" asegura que solo se abran apps de correo electrónico
         data = "mailto:".toUri()
         putExtra(Intent.EXTRA_EMAIL, recipients)
         putExtra(Intent.EXTRA_SUBJECT, "Novedades de $entrepreneurshipName")
-        putExtra(Intent.EXTRA_TEXT, "Hola! Tenemos nuevas noticias sobre nuestros productos que tienes en favoritos...")
+        putExtra(Intent.EXTRA_TEXT, emailBody)
     }
 
     try {

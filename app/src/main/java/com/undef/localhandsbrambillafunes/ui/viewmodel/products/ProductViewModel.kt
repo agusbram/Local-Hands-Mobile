@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -59,7 +60,8 @@ data class HomeScreenState(
 class ProductViewModel @Inject constructor(
     private val repository: ProductRepository,
     private val favoriteRepository: FavoriteRepository,
-    private val sellerRepository: SellerRepository
+    private val sellerRepository: SellerRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
     /**
      * Flujo interno mutable utilizado para notificar a la UI que debe
@@ -71,7 +73,7 @@ class ProductViewModel @Inject constructor(
      *
      * Se inicializa en null para indicar que no hay evento pendiente.
      */
-    private val _emailNotificationEvent = MutableStateFlow<Pair<List<String>, String>?>(null)
+    private val _emailNotificationEvent = MutableStateFlow<Triple<List<String>, String, Product>?>(null)
 
     /**
      * Exposición inmutable del evento hacia la UI.
@@ -95,8 +97,6 @@ class ProductViewModel @Inject constructor(
 
     // Estado interno y externo que expone la lista de productos
     private val _products = MutableStateFlow<List<Product>>(emptyList())
-    private val userPreferencesRepository: UserPreferencesRepository // Inyectamos el repo de preferencias
-) : ViewModel() {
 
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
@@ -122,6 +122,7 @@ class ProductViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeScreenState() // Estado inicial vacío
     )
+
 
     /**
      * Estado observable de productos que expone una lista de productos a la UI.
@@ -204,7 +205,7 @@ class ProductViewModel @Inject constructor(
 
             if (emails.isNotEmpty()) {
                 // Disparamos el evento para que la UI abra el Intent
-                _emailNotificationEvent.value = Pair(emails, entrepreneurship)
+                _emailNotificationEvent.value = Triple(emails, entrepreneurship, createdProduct)
             }
         }
         _products.value = _products.value + createdProduct

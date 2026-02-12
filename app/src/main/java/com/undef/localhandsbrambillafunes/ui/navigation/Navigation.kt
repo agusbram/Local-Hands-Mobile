@@ -178,7 +178,7 @@ fun Navigation() {
          * Pantalla para ver los detalles de un producto en venta
          * */
         composable(
-            route = AppScreens.ProductOwnerDetailScreen.route + "/{productId}",
+            route = AppScreens.ProductOwnerDetailScreen.route,
             arguments = listOf(navArgument("productId") { type = NavType.IntType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getInt("productId") ?: 0

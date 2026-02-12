@@ -29,6 +29,15 @@
       "address": "San Luis 789, Rosario",
       "entrepreneurship": "Huerta La Orgánica",
       "photoUrl": "https://picsum.photos/id/1084/200/200"
+    },
+    {
+      "address": "asdsadasd1",
+      "email": "agustinbram@gmail.com",
+      "entrepreneurship": "Qweqweqwe",
+      "id": 4,
+      "lastname": "sdasdasdsad",
+      "name": "asdsadasdas",
+      "phone": "3541207081"
     }
   ],
   "products": [
@@ -42,7 +51,7 @@
       "images": [
         "https://images.pexels.com/photos/28486186/pexels-photo-28486186.jpeg"
       ],
-      "price": 2500.0,
+      "price": 2500,
       "location": "Córdoba"
     },
     {
@@ -55,7 +64,7 @@
       "images": [
         "https://images.pexels.com/photos/18409729/pexels-photo-18409729.jpeg"
       ],
-      "price": 3800.50,
+      "price": 3800.5,
       "location": "Córdoba"
     },
     {
@@ -68,7 +77,7 @@
       "images": [
         "https://images.pexels.com/photos/28949620/pexels-photo-28949620.jpeg"
       ],
-      "price": 9500.0,
+      "price": 9500,
       "location": "Buenos Aires"
     },
     {
@@ -81,7 +90,7 @@
       "images": [
         "https://images.pexels.com/photos/11630887/pexels-photo-11630887.jpeg"
       ],
-      "price": 4200.0,
+      "price": 4200,
       "location": "Buenos Aires"
     },
     {
@@ -94,7 +103,7 @@
       "images": [
         "https://images.pexels.com/photos/5425794/pexels-photo-5425794.jpeg"
       ],
-      "price": 3200.0,
+      "price": 3200,
       "location": "Rosario"
     },
     {
@@ -105,9 +114,10 @@
       "category": "Alimentos",
       "ownerId": 3,
       "images": [
-        "https://images.pexels.com/photos/7473575/pexels-photo-7473575.jpeg", "https://images.pexels.com/photos/8851478/pexels-photo-8851478.jpeg"
+        "https://images.pexels.com/photos/7473575/pexels-photo-7473575.jpeg",
+        "https://images.pexels.com/photos/8851478/pexels-photo-8851478.jpeg"
       ],
-      "price": 2800.0,
+      "price": 2800,
       "location": "Rosario"
     },
     {
@@ -120,8 +130,86 @@
       "images": [
         "https://images.pexels.com/photos/31517685/pexels-photo-31517685.jpeg"
       ],
-      "price": 1800.0,
+      "price": 1800,
       "location": "Córdoba"
+    },
+    {
+      "category": "Alimentos",
+      "description": "PRODCTUCOasdsadsa",
+      "id": 8,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770857558220.jpg"
+      ],
+      "location": "Mina Clavero",
+      "name": "PRODUCTOASDASD",
+      "ownerId": 4,
+      "price": 789456,
+      "producer": "Qweqweqwe"
+    },
+    {
+      "category": "Alimentos",
+      "description": "lareputadmadasd",
+      "id": 9,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770858951369.jpg"
+      ],
+      "location": "San Marcos Sierras",
+      "name": "lareputamadrequelorepario",
+      "ownerId": 4,
+      "price": 212312,
+      "producer": "Qweqweqwe"
+    },
+    {
+      "category": "Alimentos",
+      "description": "MANDATEPORFAVOR",
+      "id": 10,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770860079082.jpg"
+      ],
+      "location": "Mina Clavero",
+      "name": "PRODUCTONUEVO",
+      "ownerId": 4,
+      "price": 123123,
+      "producer": "Qweqweqwe"
+    },
+    {
+      "category": "Artesanías",
+      "description": "213123213123",
+      "id": 11,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770860192022.jpg"
+      ],
+      "location": "San Marcos Sierras",
+      "name": "123213123123",
+      "ownerId": 4,
+      "price": 123,
+      "producer": "Qweqweqwe"
+    },
+    {
+      "category": "Alimentos",
+      "description": "Hecho en casa",
+      "id": 12,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770860650023.jpg"
+      ],
+      "location": "Capilla del Monte",
+      "name": "Productaso",
+      "ownerId": 4,
+      "price": 789,
+      "producer": "Qweqweqwe"
+    },
+    {
+      "category": "Alimentos",
+      "description": "HECHOACAAAA",
+      "id": 13,
+      "images": [
+        "/data/user/0/com.undef.localhandsbrambillafunes/files/1770860710927.jpg"
+      ],
+      "location": "San Marcos Sierras",
+      "name": "PRODUCTITO",
+      "ownerId": 4,
+      "price": 123,
+      "producer": "Qweqweqwe"
     }
   ]
 }
