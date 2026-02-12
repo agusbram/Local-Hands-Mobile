@@ -1,7 +1,7 @@
 # ✨ Manos Locales - Local Hands App ✨
 
 <div align="center">
-  <img src="app/src/main/res/drawable/localhandslogo.png" alt="Logo Manos Locales" width="200" style="border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  <img src="app/src/main/res/drawable/localhandslogo.png" alt="Logo Manos Locales" width="200"/>
 
   <p align="center">
     <em>🌱 Conectando comunidades con productores locales 🛍️</em>
@@ -1198,7 +1198,7 @@ SOFTWARE.
 
 | 👤 Desarrollador | 📧 Email | 🔗 GitHub |
 |------------------|----------|-----------|
-| **Tobias Funes** | [tobiasfunes@hotmail.com](mailto:tobiasfunes@hotmail.com) | [@TobiasFunes](https://github.com/TobiasFunes) |
+| **Tobias Funes** | [tobiasfunes@hotmail.com.ar](mailto:tobiasfunes@hotmail.com.ar) | [@TobiasFunes](https://github.com/TobiasFunes) |
 | **Agustín Brambilla** | [agustinbram@gmail.com](mailto:agustinbram@gmail.com) | [@MasterxDual](https://github.com/MasterxDual) |
 
 </div>
