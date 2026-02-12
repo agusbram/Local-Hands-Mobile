@@ -16,38 +16,29 @@ import at.favre.lib.crypto.bcrypt.BCrypt
  */
 object PasswordManager {
     /**
-     * Genera un hash BCrypt a partir de una contraseña en texto plano.
-     *
-     * - Utiliza el algoritmo BCrypt con un coste de trabajo (cost factor) de 12.
-     * - El resultado incluye el salt y el coste embebidos en el propio hash.
-     * - La contraseña original nunca debe almacenarse ni persistirse.
-     *
-     * @param password Contraseña en texto plano proporcionada por el usuario.
-     * @return Cadena que representa el hash BCrypt de la contraseña.
-     *
-     * @throws IllegalArgumentException si la contraseña es inválida.
+     * Genera un hash BCrypt.
+     * BCrypt tiene un límite de 72 bytes. Si la contraseña es más larga,
+     * la recortamos manualmente para evitar el error 'IllegalArgumentException'.
      */
     fun hashPassword(password: String): String {
-        return BCrypt.withDefaults().hashToString(12, password.toCharArray())
+        // Recortamos a 72 caracteres para asegurar compatibilidad con el límite de BCrypt
+        val safePassword = if (password.length > 72) password.substring(0, 72) else password
+
+        return BCrypt.withDefaults().hashToString(12, safePassword.toCharArray())
     }
 
     /**
-     * Verifica si una contraseña en texto plano coincide con un hash BCrypt almacenado.
-     *
-     * - Extrae automáticamente el salt y el coste desde el hash.
-     * - Realiza la comparación de forma segura contra ataques de timing.
-     * - Devuelve `false` si el hash no tiene un formato válido.
-     *
-     * @param plainPassword Contraseña ingresada por el usuario en texto plano.
-     * @param hashedPassword Hash BCrypt previamente almacenado.
-     * @return `true` si la contraseña coincide con el hash; `false` en caso contrario.
+     * Verifica si la contraseña coincide con el hash.
+     * También aplicamos el recorte aquí para que coincida con el hash generado arriba.
      */
     fun checkPassword(plainPassword: String, hashedPassword: String): Boolean {
         return try {
-            val result = BCrypt.verifyer().verify(plainPassword.toCharArray(), hashedPassword)
+            val safePassword = if (plainPassword.length > 72) plainPassword.substring(0, 72) else plainPassword
+
+            val result = BCrypt.verifyer().verify(safePassword.toCharArray(), hashedPassword)
             result.verified
         } catch (e: Exception) {
-            // Esto puede pasar si el hash no tiene el formato esperado
+            // Retornamos false si el hash está mal formado o hay un error
             false
         }
     }

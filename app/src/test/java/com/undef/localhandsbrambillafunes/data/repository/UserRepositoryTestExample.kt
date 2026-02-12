@@ -79,7 +79,7 @@ class UserRepositoryTestExample {
             password = "hashedPassword",
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null
         )
         val userFlow = flowOf(expectedUser)
@@ -115,7 +115,7 @@ class UserRepositoryTestExample {
             password = "hashedPassword",
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null
         )
         
@@ -165,7 +165,7 @@ class UserRepositoryTestExample {
             password = "hashedPassword",
             phone = "9876543210",
             address = "New Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null
         )
         
