@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -59,7 +60,8 @@ data class HomeScreenState(
 class ProductViewModel @Inject constructor(
     private val repository: ProductRepository,
     private val favoriteRepository: FavoriteRepository,
-    private val sellerRepository: SellerRepository
+    private val sellerRepository: SellerRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
     /**
      * Flujo interno mutable utilizado para notificar a la UI que debe
@@ -92,11 +94,8 @@ class ProductViewModel @Inject constructor(
         _emailNotificationEvent.value = null
     }
 
-
     // Estado interno y externo que expone la lista de productos
     private val _products = MutableStateFlow<List<Product>>(emptyList())
-    private val userPreferencesRepository: UserPreferencesRepository // Inyectamos el repo de preferencias
-) : ViewModel() {
 
     /**
      * Flujo de estado que expone el estado completo y estructurado de la Home Screen.
