@@ -1,5 +1,6 @@
 package com.undef.localhandsbrambillafunes.data.repository
 
+import android.util.Log
 import com.undef.localhandsbrambillafunes.data.dao.FavoriteDao
 import com.undef.localhandsbrambillafunes.data.dao.ProductDao
 import com.undef.localhandsbrambillafunes.data.dto.ProductCreateDTO
@@ -36,6 +37,12 @@ class ProductRepositoryTest {
 
     @Before
     fun setup() {
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.i(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+
         productDao = mockk()
         favoriteDao = mockk()
         apiService = mockk()
@@ -45,6 +52,7 @@ class ProductRepositoryTest {
 
     @After
     fun tearDown() {
+        unmockkStatic(Log::class)
         clearAllMocks()
     }
 
@@ -59,7 +67,7 @@ class ProductRepositoryTest {
         )
 
         coEvery { apiService.getProducts() } returns productsFromApi
-        coEvery { productDao.addProduct(any()) } just Runs
+        coEvery { productDao.addProduct(any()) } returns 1L
 
         // When
         productRepository.syncProductsWithApi()
@@ -107,7 +115,7 @@ class ProductRepositoryTest {
         coEvery { sellerRepository.getSellerByIdNonFlow(1) } returns seller
         coEvery { apiService.getProducts() } returns listOf()
         coEvery { apiService.addProductDTO(any()) } returns createdProduct
-        coEvery { productDao.addProduct(createdProduct) } just Runs
+        coEvery { productDao.addProduct(createdProduct) } returns 1L
 
         // When
         val result = productRepository.addProductWithSync(product)
@@ -127,7 +135,7 @@ class ProductRepositoryTest {
 
         coEvery { sellerRepository.getSellerByIdNonFlow(1) } returns null
         coEvery { apiService.getProducts() } throws Exception("Network error")
-        coEvery { productDao.addProduct(any()) } just Runs
+        coEvery { productDao.addProduct(any()) } returns 1L
 
         // When
         val result = productRepository.addProductWithSync(product)

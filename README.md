@@ -559,64 +559,6 @@ La aplicación utiliza **Room** con 4 tablas principales:
 │ productId(PK,FK)│
 └─────────────────┘
 ```
-
-### 🗂️ Tabla: UserEntity
-
-| Campo | Tipo | Descripción | Constraints |
-|-------|------|-------------|-------------|
-| `id` | Int | Identificador único | PRIMARY KEY, AUTO_INCREMENT |
-| `name` | String | Nombre del usuario | NOT NULL |
-| `lastName` | String | Apellido del usuario | NOT NULL |
-| `email` | String | Correo electrónico | UNIQUE, NOT NULL |
-| `password` | String | Contraseña hasheada (BCrypt) | NOT NULL |
-| `isEmailVerified` | Boolean | Email verificado | DEFAULT false |
-| `verificationCode` | String? | Código temporal de verificación | NULLABLE |
-| `resetCode` | String? | Código de reseteo de contraseña | NULLABLE |
-| `createdAt` | Long | Timestamp de creación | NOT NULL |
-
-### 🗂️ Tabla: SellerEntity
-
-| Campo | Tipo | Descripción | Constraints |
-|-------|------|-------------|-------------|
-| `id` | Int | Identificador del vendedor | PRIMARY KEY, FOREIGN KEY → User.id |
-| `name` | String | Nombre del vendedor | NOT NULL |
-| `lastname` | String | Apellido del vendedor | NOT NULL |
-| `email` | String | Email de contacto | NOT NULL |
-| `phone` | String | Teléfono de contacto | NOT NULL |
-| `whatsapp` | String? | Número de WhatsApp | NULLABLE |
-| `facebook` | String? | URL de Facebook | NULLABLE |
-| `instagram` | String? | Usuario de Instagram | NULLABLE |
-| `location` | String | Ubicación textual | NOT NULL |
-| `latitude` | Double | Latitud GPS | NOT NULL |
-| `longitude` | Double | Longitud GPS | NOT NULL |
-| `website` | String? | Sitio web | NULLABLE |
-
-### 🗂️ Tabla: ProductEntity
-
-| Campo | Tipo | Descripción | Constraints |
-|-------|------|-------------|-------------|
-| `id` | Int | Identificador único | PRIMARY KEY, AUTO_INCREMENT |
-| `name` | String | Nombre del producto | NOT NULL |
-| `description` | String | Descripción detallada | NOT NULL |
-| `producer` | String | Nombre del productor | NOT NULL |
-| `category` | String | Categoría del producto | NOT NULL |
-| `images` | List\<String\> | URLs de imágenes (1-10) | NOT NULL |
-| `price` | String | Precio en texto | NOT NULL |
-| `location` | String | Ubicación textual | NOT NULL |
-| `latitude` | Double | Latitud GPS | DEFAULT 0.0 |
-| `longitude` | Double | Longitud GPS | DEFAULT 0.0 |
-| `ownerId` | Int? | ID del vendedor propietario | NULLABLE, FOREIGN KEY → Seller.id |
-| `createdAt` | Long | Timestamp de creación | NOT NULL |
-
-### 🗂️ Tabla: FavoriteEntity
-
-| Campo | Tipo | Descripción | Constraints |
-|-------|------|-------------|-------------|
-| `userId` | Int | ID del usuario | PRIMARY KEY (compuesta), FOREIGN KEY → User.id |
-| `productId` | Int | ID del producto | PRIMARY KEY (compuesta), FOREIGN KEY → Product.id |
-
-> **Nota**: `FavoriteEntity` es una tabla de relación muchos a muchos con clave primaria compuesta.
-
 ---
 
 ## 🌐 API REST Endpoints
@@ -704,12 +646,6 @@ object PasswordManager {
     }
 }
 ```
-
-**Características de seguridad**:
-- ✅ Salt aleatorio único por contraseña
-- ✅ Factor de coste: 12 (4096 rondas)
-- ✅ Resistente a ataques de rainbow tables
-- ✅ Protección contra ataques de timing
 
 ### 📧 Verificación de Email
 
@@ -880,7 +816,111 @@ La aplicación cuenta con una **suite completa de 52+ tests unitarios** para gar
 ### 🚀 Ejecutar Tests
 
 #### Todos los tests:
+=======
+## Guía Rápida: Ejecutar Tests
+
+### Requisitos Previos
+- Android Studio instalado
+- JDK 17 configurado
+- Gradle configurado
+
+### Comandos para Ejecutar Tests
+
+#### 1. Ejecutar TODOS los tests unitarios
 ```bash
+./gradlew test
+```
+
+#### 2. Ejecutar tests con reporte detallado
+```bash
+./gradlew test --info
+```
+
+#### 3. Ejecutar tests específicos
+
+##### Tests de PasswordManager (Seguridad)
+```bash
+./gradlew test --tests "*PasswordManagerTest*"
+```
+
+##### Tests de AuthRepository (Autenticación)
+```bash
+./gradlew test --tests "*AuthRepositoryTest*"
+```
+
+##### Tests de FavoriteRepository (Favoritos)
+```bash
+./gradlew test --tests "*FavoriteRepositoryTest*"
+```
+
+##### Tests de ProductRepository (Productos)
+```bash
+./gradlew test --tests "*ProductRepositoryTest*"
+```
+
+#### 4. Ejecutar un test individual
+```bash
+./gradlew test --tests "PasswordManagerTest.hashPassword_generatesValidBCryptHash"
+```
+
+#### 5. Ver reportes de tests
+Los reportes HTML se generan en:
+```
+app/build/reports/tests/testDebugUnitTest/index.html
+```
+
+Ábrelo en tu navegador para ver resultados detallados.
+
+#### 6. Limpiar y ejecutar tests
+```bash
+./gradlew clean test
+```
+
+### Desde Android Studio
+
+1. **Ver todos los tests**:
+    - Panel izquierdo → `app/src/test/java`
+    - Click derecho en carpeta → "Run Tests"
+
+2. **Ejecutar una clase de test**:
+    - Abrir archivo de test
+    - Click en el icono verde junto al nombre de la clase
+    - O: Click derecho → "Run 'NombreTest'"
+
+3. **Ejecutar un test individual**:
+    - Click en el icono verde junto al método `@Test`
+    - O: Click derecho en el método → "Run 'nombreDelTest'"
+
+4. **Ver cobertura de código**:
+    - Click derecho en test → "Run with Coverage"
+
+### Verificar que los tests están funcionando
+
+#### Ejecuta el test de ejemplo primero:
+
+```bash
+./gradlew test --tests "*ExampleUnitTest*"
+```
+
+Si este comando no arroja errores, puedes ejecutar el resto de los tests.
+
+### Solución de Problemas
+
+#### Error: "Task 'test' not found"
+```bash
+./gradlew :app:test
+```
+
+#### Error de compilación
+```bash
+./gradlew clean
+./gradlew build
+```
+
+#### Limpiar cache de Gradle
+```bash
+./gradlew clean --no-daemon
+rm -rf .gradle
 ./gradlew test
 ```
 
@@ -903,7 +943,6 @@ La aplicación cuenta con una **suite completa de 52+ tests unitarios** para gar
 Para más información detallada sobre la arquitectura de testing:
 
 - 📄 **[TESTING.md](TESTING.md)** - Arquitectura completa de tests, patrones y mejores prácticas
-- 📄 **[COMO_EJECUTAR_TESTS.md](COMO_EJECUTAR_TESTS.md)** - Guía paso a paso para ejecutar tests
 - 📄 **[RESUMEN_TESTING.md](RESUMEN_TESTING.md)** - Resumen ejecutivo de la cobertura
 - 📁 **`app/src/test/`** - Código fuente de los tests
 
@@ -1022,59 +1061,6 @@ adb logcat | grep "OkHttp"
 # Sincronizar Gradle
 ./gradlew --refresh-dependencies
 ```
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Versión 1.0 (Completado)
-
-- [x] 🎨 Interfaz completa con Jetpack Compose
-- [x] 🔐 Sistema de autenticación (login, registro, recuperación)
-- [x] 🗄️ Base de datos local con Room (4 tablas)
-- [x] 📱 Navegación entre pantallas con Navigation Compose
-- [x] 🎭 Splash screen con logo
-- [x] 📋 Catálogo de productos con imágenes
-- [x] 🔍 Búsqueda y filtrado por categorías
-- [x] 📍 Integración de Google Maps
-- [x] 👤 Perfiles de vendedores
-- [x] ⭐ Sistema de favoritos
-- [x] 🔄 Compartir productos
-- [x] 📧 Envío de emails de soporte
-- [x] ⚙️ Pantalla de configuraciones
-- [x] 🧪 Suite de tests unitarios (52+ tests)
-
-### 🚧 Versión 2.0 (En Progreso)
-
-- [x] 🌐 Conexión a API REST con Retrofit
-- [x] 🔄 Sincronización automática con backend
-- [x] 💾 Caché local con Room como fuente única de verdad
-- [x] 🔒 Hashing de contraseñas con BCrypt
-- [x] ✉️ Verificación de email con códigos
-- [x] 💉 Inyección de dependencias con Hilt
-- [x] 🏪 Sistema de conversión a vendedor
-- [x] 📝 CRUD completo de productos para vendedores
-- [x] 💾 DataStore para persistencia de sesión
-- [ ] 🔔 Notificaciones push para favoritos (Firebase)
-- [ ] 📸 Subida de imágenes a servidor
-- [ ] 🔍 Búsqueda avanzada con múltiples filtros
-- [ ] 📊 Analytics con Firebase Analytics
-
-### ⏳ Versión 3.0 (Planeado)
-
-- [ ] 💬 Sistema de mensajería entre usuarios y vendedores
-- [ ] ⭐ Sistema de calificaciones y reseñas
-- [ ] 📦 Historial de pedidos
-- [ ] 🛒 Carrito de compras
-- [ ] 💳 Integración de pagos (Mercado Pago)
-- [ ] 🌙 Modo oscuro (Dark theme)
-- [ ] 🌍 Internacionalización (i18n) - Múltiples idiomas
-- [ ] 📱 Widget de Android para favoritos
-- [ ] 🔔 Notificaciones programadas
-- [ ] 📈 Dashboard de estadísticas para vendedores
-- [ ] 🎨 Personalización de perfil con avatares
-- [ ] 🔐 Login con redes sociales (Google, Facebook)
-
 ---
 
 ## ❓ FAQ
@@ -1111,82 +1097,9 @@ Sí, cada producto tiene un botón de compartir que te permite enviar la informa
 
 Utilizamos Google Maps API para mostrar ubicaciones de vendedores en un mapa interactivo. Al crear un producto, puedes seleccionar tu ubicación exacta en el mapa.
 
-### ❔ ¿Dónde puedo reportar bugs o sugerencias?
-
-Puedes enviar un email desde la sección de Soporte en la app, o abrir un issue en el [repositorio de GitHub](https://github.com/MasterxDual/Local-Hands-Mobile/issues).
-
 ### ❔ ¿Cómo ejecuto los tests?
 
 Ejecuta `./gradlew test` desde la terminal. Ver la sección [Testing](#-testing) para más opciones.
-
----
-
-## 🤝 Contribuir
-
-¡Las contribuciones son bienvenidas! Si quieres contribuir al proyecto:
-
-### 🔀 Proceso de Contribución
-
-1. **Fork** el repositorio
-2. **Crea** una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** a la rama (`git push origin feature/AmazingFeature`)
-5. **Abre** un Pull Request
-
-### 📝 Convenciones de Código
-
-- Usa **Kotlin** idiomático y moderno
-- Sigue el estilo de código existente
-- Escribe **tests** para nuevas funcionalidades
-- Documenta funciones públicas con **KDoc**
-- Usa **nombres descriptivos** para variables y funciones
-- Mantén las funciones **pequeñas y enfocadas**
-
-### 🧪 Tests Requeridos
-
-Toda nueva funcionalidad debe incluir:
-- ✅ Tests unitarios con cobertura > 80%
-- ✅ Tests de casos edge
-- ✅ Documentación de los tests
-
-### 🐛 Reportar Bugs
-
-Abre un issue en GitHub con:
-- 📝 Descripción clara del bug
-- 🔄 Pasos para reproducir
-- 📱 Versión de Android y dispositivo
-- 📸 Screenshots si es relevante
-- 📋 Logs de error
-
----
-
-## 📄 Licencia
-
-Este proyecto fue desarrollado como parte del trabajo práctico de **Tecnologías Móviles** de la carrera de **Ingeniería en Informática**.
-
-```
-MIT License
-
-Copyright (c) 2024 Tobias Funes & Agustín Brambilla
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
 
 ---
 
@@ -1199,30 +1112,22 @@ SOFTWARE.
 | 👤 Desarrollador | 📧 Email | 🔗 GitHub |
 |------------------|----------|-----------|
 | **Tobias Funes** | [tobiasfunes@hotmail.com.ar](mailto:tobiasfunes@hotmail.com.ar) | [@TobiasFunes](https://github.com/TobiasFunes) |
-| **Agustín Brambilla** | [agustinbram@gmail.com](mailto:agustinbram@gmail.com) | [@MasterxDual](https://github.com/MasterxDual) |
+| **Agustín Brambilla** | [agustinbram@gmail.com](mailto:agustinbram@gmail.com) | [@agusbram](https://github.com/agusbram) |
 
 </div>
 
 ### 🏫 Institución
 
-**Universidad Nacional de San Luis (UNSL)**  
-Departamento de Informática  
+**Instituto Universitario Aeronáutico**  
+Ingenieria en Informática  
 Materia: Tecnologías Móviles  
-Año: 2024
-
-### 📱 Proyecto
-
-- 🔗 **Repositorio**: [https://github.com/MasterxDual/Local-Hands-Mobile](https://github.com/MasterxDual/Local-Hands-Mobile)
-- 🐛 **Issues**: [https://github.com/MasterxDual/Local-Hands-Mobile/issues](https://github.com/MasterxDual/Local-Hands-Mobile/issues)
-- 📖 **Wiki**: [https://github.com/MasterxDual/Local-Hands-Mobile/wiki](https://github.com/MasterxDual/Local-Hands-Mobile/wiki)
+Año: 2025
 
 ---
 
 <div align="center">
 
 ### ⭐ Si te gusta el proyecto, déjanos una estrella en GitHub ⭐
-
-**Hecho con ❤️ en San Luis, Argentina 🇦🇷**
 
 [![Volver arriba](https://img.shields.io/badge/Volver%20arriba-↑-blue?style=for-the-badge)](#-manos-locales---local-hands-app-)
 
