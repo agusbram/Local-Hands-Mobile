@@ -153,7 +153,23 @@ class SellViewModel @Inject constructor(
      * @return Nombre del emprendimiento obtenido desde DataStore.
      */
     suspend fun loadEntrepreneurshipForUI(): String {
-        return userPreferencesRepository.getUserEntrepreneurship().also {
+        // Intentamos obtenerlo del DataStore
+        var entrepreneurship = userPreferencesRepository.getUserEntrepreneurship()
+
+        // Si está vacío, lo buscamos en la base de datos local usando el ID del usuario
+        if (entrepreneurship.isEmpty()) {
+            val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+            if (userId != null && userId != -1) {
+                val seller = sellerRepository.getSellerByIdNonFlow(userId)
+                if (seller != null) {
+                    entrepreneurship = seller.entrepreneurship
+                    // Lo guardamos en DataStore para la próxima vez
+                    userPreferencesRepository.saveUserEntrepreneurship(entrepreneurship)
+                }
+            }
+        }
+
+        return entrepreneurship.also {
             _entrepreneurshipName.value = it
         }
     }

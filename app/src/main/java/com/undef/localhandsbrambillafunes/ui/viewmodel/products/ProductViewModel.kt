@@ -73,7 +73,7 @@ class ProductViewModel @Inject constructor(
      *
      * Se inicializa en null para indicar que no hay evento pendiente.
      */
-    private val _emailNotificationEvent = MutableStateFlow<Pair<List<String>, String>?>(null)
+    private val _emailNotificationEvent = MutableStateFlow<Triple<List<String>, String, Product>?>(null)
 
     /**
      * Exposición inmutable del evento hacia la UI.
@@ -121,6 +121,7 @@ class ProductViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeScreenState() // Estado inicial vacío
     )
+
 
     /**
      * Estado observable de productos que expone una lista de productos a la UI.
@@ -203,7 +204,7 @@ class ProductViewModel @Inject constructor(
 
             if (emails.isNotEmpty()) {
                 // Disparamos el evento para que la UI abra el Intent
-                _emailNotificationEvent.value = Pair(emails, entrepreneurship)
+                _emailNotificationEvent.value = Triple(emails, entrepreneurship, createdProduct)
             }
         }
         _products.value = _products.value + createdProduct

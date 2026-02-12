@@ -140,6 +140,29 @@ app/
 
 ---
 
+## 🧪 Testing
+
+La aplicación cuenta con una suite completa de **tests unitarios** para las funcionalidades más críticas:
+
+- **52+ tests unitarios** implementados
+- Cobertura de:
+  - ✅ Autenticación y seguridad (PasswordManager)
+  - ✅ Gestión de sesiones (AuthRepository)
+  - ✅ Sistema de favoritos (FavoriteRepository)
+  - ✅ CRUD de productos y sincronización (ProductRepository)
+
+### Ejecutar los tests:
+```bash
+./gradlew test
+```
+
+📖 **Documentación completa**: 
+- [TESTING.md](TESTING.md) - Arquitectura y diseño de tests
+- [COMO_EJECUTAR_TESTS.md](COMO_EJECUTAR_TESTS.md) - Guía de ejecución
+- Ver ejemplos en `app/src/test/` para aprender a escribir más tests
+
+---
+
 ## 📅 Roadmap
 
 | Versión | Estado       | Novedades                                                                 |
