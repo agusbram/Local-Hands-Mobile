@@ -58,7 +58,9 @@ class SellerRepository @Inject constructor(
     suspend fun convertToSeller(
         user: User,
         entrepreneurshipName: String,
-        address: String
+        address: String,
+        latitude: Double = 0.0,
+        longitude: Double = 0.0
     ): Result<Unit> {
         Log.d("SellerRepository", "Iniciando conversión a vendedor para el usuario: ${user.email}")
 
@@ -71,8 +73,8 @@ class SellerRepository @Inject constructor(
             address = address, // Usamos la nueva dirección
             entrepreneurship = entrepreneurshipName,
             photoUrl = user.photoUrl,
-            latitude = 0.0, // Valor por defecto
-            longitude = 0.0 // Valor por defecto
+            latitude = latitude, // Coordenadas reales seleccionadas en el mapa
+            longitude = longitude // Coordenadas reales seleccionadas en el mapa
         )
 
         return try {
@@ -95,8 +97,8 @@ class SellerRepository @Inject constructor(
                         address = newSellerData.address,
                         entrepreneurship = newSellerData.entrepreneurship,
                         photoUrl = newSellerData.photoUrl,
-                        latitude = 0.0,
-                        longitude = 0.0
+                        latitude = latitude,
+                        longitude = longitude
                     )
                 )
                 newSellerData // Usamos los datos locales

@@ -470,18 +470,6 @@ fun CategoryDropdown(
  * @param context Contexto para Google Maps
  * @param onLocationSelected Callback con la ubicación seleccionada
  */
-/**
- * Composable que renderiza un menú desplegable para seleccionar una ubicación de producto.
- *
- * Permite al usuario elegir de una lista predefinida de localidades en Córdoba,
- * o seleccionar una ubicación personalizada usando Google Maps.
- * Captura las coordenadas geográficas cuando se selecciona desde Maps.
- *
- * @param selectedLocation Ubicación actualmente seleccionada.
- * @param preselectedFromSeller Ubicación predeterminada del emprendimiento/vendedor.
- * @param context Contexto para acceder a Google Maps.
- * @param onLocationSelected Callback que devuelve (address, latitude, longitude) cuando se selecciona una ubicación.
- */
 @Composable
 fun LocationDropdown(
     selectedLocation: String,

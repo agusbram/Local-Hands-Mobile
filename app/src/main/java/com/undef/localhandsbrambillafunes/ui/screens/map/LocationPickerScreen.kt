@@ -3,6 +3,7 @@ package com.undef.localhandsbrambillafunes.ui.screens.map
 import android.content.Context
 import android.location.Address
 import android.location.Geocoder
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -107,9 +108,18 @@ fun LocationPickerScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            if (selectedAddress != null) {
+            if (selectedAddress != null && selectedLocation != null) {
                 FloatingActionButton(onClick = {
-                    navController.previousBackStackEntry?.savedStateHandle?.set("picked_location", selectedAddress)
+                    Log.d("LocationPickerScreen", "Confirmando ubicación: $selectedAddress (Lat: ${selectedLocation?.latitude}, Lon: ${selectedLocation?.longitude})")
+                    val previousEntry = navController.previousBackStackEntry
+                    if (previousEntry != null) {
+                        previousEntry.savedStateHandle.set("picked_location_address", selectedAddress)
+                        previousEntry.savedStateHandle.set("picked_location_latitude", selectedLocation?.latitude ?: 0.0)
+                        previousEntry.savedStateHandle.set("picked_location_longitude", selectedLocation?.longitude ?: 0.0)
+                        Log.d("LocationPickerScreen", "✅ Ubicación y coordenadas guardadas en savedStateHandle")
+                    } else {
+                        Log.e("LocationPickerScreen", "❌ previousBackStackEntry es null, no se pudo guardar la ubicación")
+                    }
                     navController.popBackStack()
                 }) {
                     Icon(Icons.Default.Check, contentDescription = "Confirmar ubicación")

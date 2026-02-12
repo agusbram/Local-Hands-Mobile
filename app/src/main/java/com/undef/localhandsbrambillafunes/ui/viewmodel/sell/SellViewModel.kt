@@ -2,7 +2,10 @@ package com.undef.localhandsbrambillafunes.ui.viewmodel.sell
 
 import android.content.Context
 import android.content.Intent
+import android.location.Address
+import android.location.Geocoder
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.core.net.toUri
+import java.io.IOException
 
 /**
  * Representa los posibles estados del proceso de creación o validación
@@ -92,6 +96,18 @@ class SellViewModel @Inject constructor(
      */
     private val _address = MutableStateFlow<String?>(null)
     val address: StateFlow<String?> = _address
+
+    /**
+     * Estado que contiene la latitud de la ubicación seleccionada.
+     */
+    private val _latitude = MutableStateFlow<Double>(0.0)
+    val latitude: StateFlow<Double> = _latitude
+
+    /**
+     * Estado que contiene la longitud de la ubicación seleccionada.
+     */
+    private val _longitude = MutableStateFlow<Double>(0.0)
+    val longitude: StateFlow<Double> = _longitude
 
     /**
      * Al inicializar el ViewModel se inicia la sincronización periódica
@@ -176,6 +192,72 @@ class SellViewModel @Inject constructor(
     fun resetConversionState() {
         _entrepreneurshipName.value = ""
         _address.value = null
+        _latitude.value = 0.0
+        _longitude.value = 0.0
+    }
+
+    /**
+     * Inicializa el formulario pre-cargando la dirección del usuario logueado
+     * y geocodificándola automáticamente para obtener las coordenadas.
+     *
+     * Este método:
+     * 1. Obtiene el usuario actual desde la base de datos
+     * 2. Toma su dirección registrada (User.address)
+     * 3. Geocodifica esa dirección para obtener latitud/longitud
+     * 4. Pre-carga estos datos en los campos del formulario
+     *
+     * @param context Contexto de aplicación necesario para la geocodificación
+     */
+    fun initializeWithUserAddress(context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                Log.d("SellViewModel", "🔄 Inicializando con dirección del usuario...")
+                
+                // Obtener ID del usuario logueado
+                val userId = userPreferencesRepository.userIdFlow.firstOrNull()
+                if (userId == null) {
+                    Log.e("SellViewModel", "❌ No hay usuario logueado")
+                    return@launch
+                }
+
+                // Obtener datos del usuario
+                val user = userRepository.getUserById(userId).firstOrNull()
+                if (user == null) {
+                    Log.e("SellViewModel", "❌ Usuario no encontrado: $userId")
+                    return@launch
+                }
+
+                if (user.address.isBlank()) {
+                    Log.w("SellViewModel", "⚠️ Usuario no tiene dirección registrada")
+                    return@launch
+                }
+
+                Log.d("SellViewModel", "✅ Encontrado usuario: ${user.name}, dirección: ${user.address}")
+                
+                // Pre-cargar la dirección
+                _address.value = user.address
+                
+                // Geocodificar la dirección para obtener coordenadas
+                val geocoder = Geocoder(context)
+                try {
+                    val addresses = geocoder.getFromLocationName(user.address, 1)
+                    if (addresses != null && addresses.isNotEmpty()) {
+                        val address = addresses[0]
+                        _latitude.value = address.latitude
+                        _longitude.value = address.longitude
+                        Log.d("SellViewModel", "✅ Geocodificación exitosa: lat=${address.latitude}, lon=${address.longitude}")
+                    } else {
+                        Log.w("SellViewModel", "⚠️ No se encontraron coordenadas para: ${user.address}")
+                        // Mantener los valores por defecto (0.0, 0.0)
+                    }
+                } catch (e: IOException) {
+                    Log.e("SellViewModel", "❌ Error en geocodificación: ${e.message}")
+                    // Mantener los valores por defecto (0.0, 0.0)
+                }
+            } catch (e: Exception) {
+                Log.e("SellViewModel", "💥 Error en initializeWithUserAddress: ${e.message}", e)
+            }
+        }
     }
 
     /**
@@ -188,12 +270,23 @@ class SellViewModel @Inject constructor(
     }
 
     /**
-     * Actualiza la dirección de la ubicación seleccionada.
+     * Actualiza la dirección y coordenadas de la ubicación seleccionada.
      *
      * @param address Dirección de la nueva ubicación.
      */
     fun onLocationChange(address: String) {
         _address.value = address
+    }
+
+    /**
+     * Actualiza las coordenadas de la ubicación seleccionada.
+     *
+     * @param latitude Latitud de la ubicación.
+     * @param longitude Longitud de la ubicación.
+     */
+    fun onCoordinatesChange(latitude: Double, longitude: Double) {
+        _latitude.value = latitude
+        _longitude.value = longitude
     }
 
     /**
@@ -260,37 +353,46 @@ class SellViewModel @Inject constructor(
         if (_entrepreneurshipName.value.isBlank() || _address.value.isNullOrBlank()) {
             // Si el nombre o la dirección están vacíos, no hacemos nada.
             // La UI ya debería prevenir esto con `enabled = false`.
+            Log.w("SellViewModel", "⚠️ Validación fallida: entrepreneurship='${_entrepreneurshipName.value}', address='${_address.value}'")
             return
         }
 
         viewModelScope.launch {
             _status.value = SellerCreationStatus.LOADING
+            Log.d("SellViewModel", "📍 Iniciando convertUserToSeller: lat=${_latitude.value}, lon=${_longitude.value}")
             try {
                 val userId = userPreferencesRepository.userIdFlow.firstOrNull()
                 if (userId == null) {
+                    Log.e("SellViewModel", "❌ userId es null")
                     _status.value = SellerCreationStatus.ERROR
                     return@launch
                 }
 
                 val user = userRepository.getUserById(userId).firstOrNull()
                 if (user == null) {
+                    Log.e("SellViewModel", "❌ Usuario no encontrado: $userId")
                     _status.value = SellerCreationStatus.ERROR
                     return@launch
                 }
 
                 // La verificación de si ya es vendedor es redundante aquí, pero es una buena salvaguarda.
                 if (user.role == UserRole.SELLER) {
+                    Log.d("SellViewModel", "⚠️ Usuario ya es vendedor")
                     _status.value = SellerCreationStatus.ALREADY_EXISTS
                     return@launch
                 }
 
                 // Llamar a la función del repositorio que hace la magia.
+                Log.d("SellViewModel", "📤 Llamando convertToSeller con address='${_address.value}'")
                 sellerRepository.convertToSeller(
                     user = user,
                     entrepreneurshipName = _entrepreneurshipName.value,
-                    address = _address.value!!
+                    address = _address.value!!,
+                    latitude = _latitude.value,
+                    longitude = _longitude.value
                 )
                     .onSuccess {
+                        Log.d("SellViewModel", "✅ convertToSeller exitoso!")
                         // Guardar emprendimiento en DataStore
                         userPreferencesRepository.saveUserEntrepreneurship(_entrepreneurshipName.value)
 
@@ -298,14 +400,17 @@ class SellViewModel @Inject constructor(
                         _entrepreneurshipName.value = _entrepreneurshipName.value
 
                         _status.value = SellerCreationStatus.SUCCESS
+                        Log.d("SellViewModel", "✅ Status set to SUCCESS, reseteando estado...")
 
                         resetConversionState()
                     }
                     .onFailure { error ->
+                        Log.e("SellViewModel", "❌ Error en convertToSeller: ${error.message}", error)
                         throw error
                     }
             } catch (e: Exception) {
-                println("Error en el proceso de convertUserToSeller: ${e.message}")
+                Log.e("SellViewModel", "💥 EXCEPTION en convertUserToSeller: ${e.message}", e)
+                e.printStackTrace()
                 _status.value = SellerCreationStatus.ERROR
             }
         }

@@ -30,7 +30,6 @@ object DatabaseModule {
             AppDatabase::class.java,
             "app_database"
         )
-            .addCallback(callback)
             .fallbackToDestructiveMigration(false)
             .build()
     }
