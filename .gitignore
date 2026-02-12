@@ -77,5 +77,8 @@ outputs/
 # Variables de entorno
 local.properties
 
+# DB JSON
+db.json
+
 # Otros
 .cxx/

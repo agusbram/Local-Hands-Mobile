@@ -68,7 +68,7 @@ class AuthRepositoryTest {
             password = "password123",
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null
         )
         val userId = 1L
@@ -99,7 +99,7 @@ class AuthRepositoryTest {
             password = "password123",
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null
         )
 
@@ -112,7 +112,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con email existente", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error correcto",
-            "El email ya está registrado!",
+            "El email ya esta registrado!",
             result.exceptionOrNull()?.message
         )
         coVerify { userDao.isEmailExists(user.email) }
@@ -133,7 +133,7 @@ class AuthRepositoryTest {
             password = hashedPassword,
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null,
             isEmailVerified = true
         )
@@ -166,7 +166,7 @@ class AuthRepositoryTest {
             password = hashedPassword,
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null,
             isEmailVerified = true
         )
@@ -180,7 +180,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con contraseña incorrecta", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Credenciales incorrectas!",
+            "Credenciales incorrectos!",
             result.exceptionOrNull()?.message
         )
     }
@@ -200,7 +200,7 @@ class AuthRepositoryTest {
         assertTrue("Debe fallar con email inexistente", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Credenciales incorrectas!",
+            "Credenciales incorrectos!",
             result.exceptionOrNull()?.message
         )
     }
@@ -219,7 +219,7 @@ class AuthRepositoryTest {
             password = hashedPassword,
             phone = "1234567890",
             address = "Test Address",
-            role = UserRole.USER,
+            role = UserRole.CLIENT,
             photoUrl = null,
             isEmailVerified = false
         )
@@ -353,7 +353,7 @@ class AuthRepositoryTest {
         assertTrue("Verificación debe fallar con código incorrecto", result.isFailure)
         assertEquals(
             "Debe retornar mensaje de error",
-            "Código incorrecto!",
+            "Codigo incorrecto!",
             result.exceptionOrNull()?.message
         )
     }
