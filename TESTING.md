@@ -171,11 +171,11 @@ fun testName_condition_expectedResult() = runTest {
 - Productos (ProductRepository): 15+ tests
 
 **Cobertura de Casos**:
-- ✅ Casos de éxito (happy path)
-- ✅ Casos de error (error handling)
-- ✅ Validaciones de entrada
-- ✅ Casos edge (límites, vacíos, nulos)
-- ✅ Integración entre componentes
+- Casos de éxito (happy path)
+- Casos de error (error handling)
+- Validaciones de entrada
+- Casos edge (límites, vacíos, nulos)
+- Integración entre componentes
 
 ## Beneficios de los Tests Implementados
 
