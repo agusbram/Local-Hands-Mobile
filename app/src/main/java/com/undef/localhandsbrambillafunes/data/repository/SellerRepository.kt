@@ -146,30 +146,45 @@ class SellerRepository @Inject constructor(
      * - Se actualiza si ya existe
      *
      * Útil para sincronizaciones iniciales o refrescos completos.
+     * 
+     * @return Lista de vendedores sincronizados desde la API
      */
-    suspend fun syncSellersWithApi() {
-        try {
+    suspend fun syncSellersWithApi(): List<Seller> {
+        return try {
+            Log.d("SellerRepository", "🔄 Iniciando sincronización de vendedores desde API...")
             val sellersFromApi = apiService.getSellers()
+            Log.d("SellerRepository", "📡 Se obtuvieron ${sellersFromApi.size} vendedores de la API")
 
+            var insertedCount = 0
+            var updatedCount = 0
+            
             // Para cada vendedor de la API, insertar o actualizar en Room
-            sellersFromApi.forEach { apiSeller ->
-                // Verificar si ya existe un usuario con el mismo id
-                val userExists = userDao.getUserById(apiSeller.id)
-                if (userExists != null) {
+            for (apiSeller in sellersFromApi) {
+                try {
+                    // Verificar si ya existe en Room
                     val localSeller = sellerDao.getSellerByIdSuspend(apiSeller.id)
                     if (localSeller == null) {
                         // Insertar nuevo
                         sellerDao.insertSeller(apiSeller)
+                        insertedCount++
+                        Log.d("SellerRepository", "✅ Vendedor insertado: ${apiSeller.name} (ID: ${apiSeller.id})")
                     } else {
-                        // Actualizar existente
+                        // Actualizar existente si hay cambios
                         sellerDao.updateSeller(apiSeller)
+                        updatedCount++
+                        Log.d("SellerRepository", "♻️ Vendedor actualizado: ${apiSeller.name} (ID: ${apiSeller.id})")
                     }
+                } catch (e: Exception) {
+                    Log.e("SellerRepository", "❌ Error procesando vendedor ${apiSeller.id}: ${e.message}", e)
                 }
             }
 
-            Log.d("SellerRepository", "Synced ${sellersFromApi.size} sellers from API")
+            Log.d("SellerRepository", "✅ Sincronización completada: $insertedCount insertados, $updatedCount actualizados")
+            sellersFromApi
         } catch (e: Exception) {
-            Log.e("SellerRepository", "Error syncing sellers (Fix with AI)", e)
+            Log.e("SellerRepository", "❌ Error sincronizando vendedores: ${e.message}", e)
+            e.printStackTrace()
+            emptyList()
         }
     }
 

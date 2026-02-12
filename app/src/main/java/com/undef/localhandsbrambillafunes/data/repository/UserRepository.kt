@@ -4,7 +4,9 @@ import android.util.Log
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.undef.localhandsbrambillafunes.data.dao.SellerDao
 import com.undef.localhandsbrambillafunes.data.dao.UserDao
+import com.undef.localhandsbrambillafunes.data.entity.Seller
 import com.undef.localhandsbrambillafunes.data.entity.User
+import com.undef.localhandsbrambillafunes.data.entity.UserRole
 import com.undef.localhandsbrambillafunes.data.remote.ApiService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -142,6 +144,67 @@ class UserRepository @Inject constructor(
         if (user != null) {
             // d. Eliminar el usuario de la base de datos local (Room)
             userDao.deleteUser(user)
+        }
+    }
+
+    /**
+     * Crea usuarios automáticamente a partir de los vendedores sincronizados.
+     *
+     * Este método toma los vendedores de la base de datos local y crea
+     * usuarios correspondientes con role = SELLER si no existen.
+     *
+     * Útil para sincronizaciones iniciales donde solo hay vendedores en la API.
+     */
+    suspend fun createUsersFromSellers(sellers: List<Seller>) {
+        try {
+            Log.d("UserRepository", "🔄 Iniciando creación de usuarios a partir de vendedores...")
+
+            var createdCount = 0
+            
+            for (seller in sellers) {
+                try {
+                    // Verificar si ya existe un usuario con este ID
+                    val existingUser = userDao.getUserByIdNonFlow(seller.id)
+                    
+                    if (existingUser == null) {
+                        // Crear un nuevo usuario a partir del vendedor
+                        val newUser = User(
+                            id = seller.id,
+                            name = seller.name,
+                            lastName = seller.lastname,
+                            email = seller.email,
+                            password = "", // Sin contraseña (viene del servidor)
+                            phone = seller.phone,
+                            address = seller.address,
+                            role = UserRole.SELLER,
+                            photoUrl = seller.photoUrl
+                        )
+                        
+                        userDao.insertUser(newUser)
+                        createdCount++
+                        Log.d("UserRepository", "✅ Usuario creado a partir de vendedor: ${seller.name} (ID: ${seller.id})")
+                    } else {
+                        // Actualizar usuario existente con datos del vendedor
+                        val updatedUser = existingUser.copy(
+                            name = seller.name,
+                            lastName = seller.lastname,
+                            email = seller.email,
+                            phone = seller.phone,
+                            address = seller.address,
+                            photoUrl = seller.photoUrl
+                        )
+                        userDao.updateUser(updatedUser)
+                        Log.d("UserRepository", "♻️ Usuario actualizado a partir de vendedor: ${seller.name} (ID: ${seller.id})")
+                    }
+                } catch (e: Exception) {
+                    Log.e("UserRepository", "❌ Error creando usuario para vendedor ${seller.id}: ${e.message}", e)
+                }
+            }
+
+            Log.d("UserRepository", "✅ Creación de usuarios completada: $createdCount usuarios creados")
+        } catch (e: Exception) {
+            Log.e("UserRepository", "❌ Error creando usuarios desde vendedores: ${e.message}", e)
+            e.printStackTrace()
         }
     }
 }

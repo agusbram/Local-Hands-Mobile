@@ -1,9 +1,13 @@
 package com.undef.localhandsbrambillafunes.ui.screens.entrepreneur
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.launch
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -26,10 +30,13 @@ import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.undef.localhandsbrambillafunes.data.entity.Product
 import com.undef.localhandsbrambillafunes.data.repository.SellerRepository
 import com.undef.localhandsbrambillafunes.data.repository.UserPreferencesRepository
@@ -37,6 +44,7 @@ import com.undef.localhandsbrambillafunes.ui.navigation.AppScreens
 import com.undef.localhandsbrambillafunes.ui.viewmodel.products.ProductViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.sell.SellViewModel
 import com.undef.localhandsbrambillafunes.ui.viewmodel.session.SessionViewModel
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -77,6 +85,37 @@ fun EditProductScreen(
 
     // Llamamos a una funcion suspend con corrutinas para obtener el currentUserId
 
+    /**
+     * Obtiene el contexto actual de Compose, necesario para lanzar el Intent
+     * de envío de correo electrónico.
+     */
+    val context = LocalContext.current
+
+    /**
+     * Efecto ejecutado una única vez cuando el Composable entra en composición.
+     *
+     * Este bloque cumple tres responsabilidades principales:
+     *
+     * 1. Inicialización de datos del usuario:
+     *    - Obtiene el identificador del usuario actual desde SessionViewModel.
+     *    - Actualiza el estado local `currentUserIdState`.
+     *    - Registra el ID en el log para fines de depuración.
+     *
+     * 2. Carga de información del emprendimiento:
+     *    - Solicita al SellViewModel el nombre del emprendimiento.
+     *    - Actualiza el estado local `entrepreneurshipState` para su uso en la UI.
+     *
+     * 3. Observación de eventos de notificación por correo:
+     *    - Escucha el StateFlow `emailNotificationEvent` del ProductViewModel.
+     *    - Cuando se recibe un evento válido:
+     *        a) Ejecuta la función que lanza el Intent de envío de correo.
+     *        b) Resetea el evento en el ViewModel para evitar reenvíos
+     *           accidentales durante recomposiciones.
+     *
+     * Este enfoque mantiene la lógica de negocio en los ViewModels,
+     * mientras que las acciones dependientes del contexto (como abrir
+     * un Intent) se ejecutan en la capa de UI.
+     */
     LaunchedEffect(Unit) {
         val userId = sessionViewModel.getCurrentUserId()
         currentUserIdState.value = userId
@@ -85,6 +124,15 @@ fun EditProductScreen(
         // Cargar entrepreneurship desde SellViewModel
         val loaded = sellViewModel.loadEntrepreneurshipForUI()
         entrepreneurshipState.value = loaded
+
+        productViewModel.emailNotificationEvent.collect { event ->
+            event?.let { (emails, entrepreneurship) ->
+                // Llamamos a la función de envío
+                sendEmailToInterestedUsers(context, emails, entrepreneurship)
+                // Reseteamos el evento en el ViewModel
+                productViewModel.resetEmailEvent()
+            }
+        }
     }
 
     // Actualizar entrepreneurshipState cuando cambie entrepreneurship
@@ -168,6 +216,7 @@ fun EditProductScreen(
     // Formulario válido solo si todo está correcto
     val isFormValid = isNameValid && isDescriptionValid && isPriceValid &&
             category.isNotEmpty() && location.isNotEmpty() && images.isNotEmpty()
+
 
     Scaffold(
         // Barra superior con acciones
@@ -522,12 +571,59 @@ fun MultiImagePickerField(selectedPaths: List<String>, onImagesSelected: (List<S
     }
 }
 
-// --- VALIDACIONES ---
+/**
+ * Valida si el campo de texto contiene por lo menos 10 caracteres
+ * @input Texto a validar
+ * */
+fun isValidTextField(input: String): Boolean = input.trim().length >= 10
 
-fun isValidTextField(text: String): Boolean {
-    return text.trim().length >= 4
-}
+/**
+ * Valida si el precio es un número positivo
+ * @price Precio a validar
+ * */
+fun isValidPrice(price: String): Boolean =
+    price.toDoubleOrNull()?.let { it > 0 } == true
 
-fun isValidPrice(price: String): Boolean {
-    return price.toDoubleOrNull()?.let { it > 0 } ?: false
+
+/**
+ * Lanza un Intent para enviar un correo electrónico a los usuarios interesados
+ * en los productos de un determinado emprendimiento.
+ *
+ * Funcionamiento:
+ * - Si la lista de correos está vacía, muestra un mensaje informativo y finaliza.
+ * - Convierte la lista de destinatarios a un arreglo de Strings.
+ * - Crea un Intent con acción ACTION_SENDTO y esquema "mailto:" para asegurar
+ *   que únicamente se abran aplicaciones de correo electrónico.
+ * - Configura los destinatarios, asunto y cuerpo del mensaje.
+ * - Abre un selector de aplicaciones disponibles para el envío.
+ *
+ * En caso de que no exista ninguna aplicación de correo instalada,
+ * se captura la excepción y se muestra un mensaje al usuario.
+ *
+ * @param context Contexto necesario para lanzar el Intent y mostrar Toast.
+ * @param emails Lista de direcciones de correo de los destinatarios.
+ * @param entrepreneurshipName Nombre del emprendimiento utilizado en el asunto del correo.
+ */
+fun sendEmailToInterestedUsers(context: Context, emails: List<String>, entrepreneurshipName: String) {
+    if (emails.isEmpty()) {
+        Toast.makeText(context, "No hay usuarios con tus productos en favoritos", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    // Convertimos la lista de emails a un array de Strings
+    val recipients = emails.toTypedArray()
+
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        // "mailto:" asegura que solo se abran apps de correo electrónico
+        data = "mailto:".toUri()
+        putExtra(Intent.EXTRA_EMAIL, recipients)
+        putExtra(Intent.EXTRA_SUBJECT, "Novedades de $entrepreneurshipName")
+        putExtra(Intent.EXTRA_TEXT, "Hola! Tenemos nuevas noticias sobre nuestros productos que tienes en favoritos...")
+    }
+
+    try {
+        context.startActivity(Intent.createChooser(intent, "Enviar correo con..."))
+    } catch (e: Exception) {
+        Toast.makeText(context, "No tienes aplicaciones de correo instaladas", Toast.LENGTH_SHORT).show()
+    }
 }
